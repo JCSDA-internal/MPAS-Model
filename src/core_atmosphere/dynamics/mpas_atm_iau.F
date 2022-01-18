@@ -69,6 +69,7 @@ module mpas_atm_iau
       
          if(itimestep <= nsteps_iau) then
             !wgt_iau = 1./nsteps_iau     
+            !wgt_iau = nint(dt /time_window_sec), which will be divided by dt when applied later.
             wgt_iau = 1.0_RKIND / time_window_sec
             if(debug) call mpas_log_write('atm_compute_iau_coef: wgt_iau = $r', realArgs=(/wgt_iau/))
          end if
@@ -98,9 +99,13 @@ module mpas_atm_iau
       type (mpas_pool_type), pointer :: mesh
       
       integer :: iEdge, iCell, i, j, k, n
+      integer :: cell1, cell2                               ! added by Soyoung (Jan-13-2022)
       integer, pointer :: nCells, nEdges, nCellsSolve, nEdgesSolve, nVertLevels
       integer, pointer:: index_qv
       integer, pointer:: moist_start, moist_end
+      integer, dimension(:,:), pointer :: cellsOnEdge       ! added by Soyoung (Jan-13-2022)
+      real (kind=RKIND) :: rho_amb_edge                     ! added by Soyoung (Jan-14-2022)
+      ! Soyoung: amb stands for A-minus-B (e.g., analysis increments) in this module.
       
       real (kind=RKIND), dimension(:,:), pointer :: rho_edge, rho_zz, theta_m, theta, u, zz, &
                                                     tend_th, tend_w
@@ -132,11 +137,13 @@ module mpas_atm_iau
       call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
       
       call mpas_pool_get_array(mesh, 'zz', zz)
+      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)   ! added by Soyoung (Jan-13-2022)
       
       call mpas_pool_get_array(state, 'theta_m', theta_m, 1)
       call mpas_pool_get_array(state, 'scalars', scalars, 1)
       call mpas_pool_get_array(state, 'rho_zz',   rho_zz, 2) 
       call mpas_pool_get_array(diag , 'rho_edge', rho_edge)
+      call mpas_pool_get_array(state, 'u',             u, 1)       ! added by Soyoung (Jan-13-2022)
       
       call mpas_pool_get_dimension(state, 'moist_start', moist_start)
       call mpas_pool_get_dimension(state, 'moist_end', moist_end)
@@ -166,8 +173,12 @@ module mpas_atm_iau
 
 !     add coupled tendencies for u on edges
       do i = 1, nEdgesSolve
+         cell1 = cellsOnEdge(1,i)     ! added by Soyoung (Jan-13-2022)
+         cell2 = cellsOnEdge(2,i)     ! added by Soyoung (Jan-13-2022)
          do k = 1, nVertLevels
-            tend_ru(k,i) = tend_ru(k,i) + wgt_iau * rho_edge(k,i) * u_amb(k,i)
+           !tend_ru(k,i) = tend_ru(k,i) + wgt_iau * rho_edge(k,i) * u_amb(k,i)    ! commented out by Soyoung (Jan-14-2022)
+            rho_amb_edge = 0.5_RKIND * (rho_amb(k,cell1)/zz(k,cell1) + rho_amb(k,cell2)/zz(k,cell2))     ! added by Soyoung (Jan-14-2022)
+            tend_ru(k,i) = tend_ru(k,i) + wgt_iau * (rho_edge(k,i) * u_amb(k,i) + rho_amb_edge * u(k,i)) ! added by Soyoung (Jan-14-2022)
          enddo
       enddo
 
@@ -175,6 +186,7 @@ module mpas_atm_iau
       do i = 1, nCellsSolve
          do k = 1, nVertLevels
             tend_rho(k,i) = tend_rho(k,i) + wgt_iau * rho_amb(k,i)/zz(k,i)
+           !tend_rho(k,i) = tend_rho(k,i) + wgt_iau * rho_amb(k,i)/zz(k,i)/dt    ! Soyoung: 1/dt is included in wgt_iau (See atm_iau_coef).
          enddo
       enddo
       
