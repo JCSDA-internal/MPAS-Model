@@ -515,8 +515,6 @@
 			<var name="uReconstructMeridional"/>
 			<var name="surface_pressure"/>
 			<var name="refl10cm_max"/>
-			<var name="rainc"/>
-			<var name="rainnc"/>
 			<var name="lai"/>
 			<var name="isice_lu"/>
 			<var name="iswater_lu"/>
