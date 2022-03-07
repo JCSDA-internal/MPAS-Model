@@ -8,7 +8,7 @@ partners are the climate modeling group at Los Alamos National Laboratory
 (COSIM) and the National Center for Atmospheric Research. Both primary
 partners are responsible for the MPAS framework, operators, and tools common to
 the applications; LANL has primary responsibility for the ocean model, and NCAR
-has primary responsibility for the atmospheric model.
+has primary responsibility for the atmospheric model. 
 
 The MPAS framework facilitates the rapid development and prototyping of models
 by providing infrastructure typically required by model developers, including
