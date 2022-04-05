@@ -177,7 +177,7 @@ include 'mpif.h'
 !   private :: mpas_dmpar_exch_halo_adj_field1d_integer
 !   private :: mpas_dmpar_exch_halo_adj_field2d_integer
 !   private :: mpas_dmpar_exch_halo_adj_field3d_integer
-!   private :: mpas_dmpar_exch_halo_adj_field1d_real
+   private :: mpas_dmpar_exch_halo_adj_field1d_real
    private :: mpas_dmpar_exch_halo_adj_field2d_real
 !   private :: mpas_dmpar_exch_halo_adj_field3d_real
 !   private :: mpas_dmpar_exch_halo_adj_field4d_real
@@ -6159,11 +6159,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !  routine mpas_dmpar_exch_halo_adj_field1d_real
 !
 !> \brief MPAS dmpar halo exchange adjoint 1D real field
-!> \author Doug Jacobsen
-!> \date   03/26/13
+!> \author BJ Jung
+!> \date   04/2022
 !> \details
-!>  This routine handles the halo exchange communication of an input field across all processors.
-!>  It requires exchange lists to be created prior to calling this routine.
+!>  This routine handles the adjoint of halo exchange communication of an input field across all processors.
+!>  It accumulates the values of owned point with the values of halos. It is based on mpas_dmpar_exch_halo_field1d_real.
 !
 !-----------------------------------------------------------------------
    subroutine mpas_dmpar_exch_halo_adj_field1d_real(field, haloLayersIn)!{{{
@@ -6340,11 +6340,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !  routine mpas_dmpar_exch_halo_adj_field2d_real
 !
 !> \brief MPAS dmpar halo exchange adjoint 2D real field
-!> \author Doug Jacobsen
-!> \date   03/26/13
+!> \author BJ Jung
+!> \date   09/2020
 !> \details
-!>  This routine handles the halo exchange communication of an input field across all processors.
-!>  It requires exchange lists to be created prior to calling this routine.
+!>  This routine handles the adjoint of halo exchange communication of an input field across all processors.
+!>  It accumulates the values of owned point with the values of halos. It is based on mpas_dmpar_exch_halo_field2d_real.
 !
 !-----------------------------------------------------------------------
    subroutine mpas_dmpar_exch_halo_adj_field2d_real(field, haloLayersIn)!{{{
