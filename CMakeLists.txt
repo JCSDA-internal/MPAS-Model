@@ -17,14 +17,8 @@ if(MPAS_CORES MATCHES " ") #Convert strings separated with spaces to CMake list 
 endif()
 option(MPAS_DOUBLE_PRECISION "Use double precision 64-bit Floating point." TRUE)
 option(MPAS_PROFILE "Enable GPTL profiling" OFF)
+option(MPAS_OPENMP "Enable OpenMP" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
-find_package(OpenMP COMPONENTS Fortran)
-if(OpenMP_FOUND)
-    option(MPAS_OPENMP "Enable OpenMP" ON)
-else()
-    option(MPAS_OPENMP "Disable OpenMP" OFF)
-endif()
-
 
 message(STATUS "[OPTION] MPAS_CORES: ${MPAS_CORES}")
 message(STATUS "[OPTION] MPAS_DOUBLE_PRECISION: ${MPAS_DOUBLE_PRECISION}")
@@ -59,6 +53,7 @@ if(NOT MPAS_GIT_VERSION)
 endif()
 
 ### Dependencies
+find_package(OpenMP COMPONENTS Fortran)
 find_package(MPI REQUIRED COMPONENTS Fortran)
 find_package(NetCDF REQUIRED COMPONENTS Fortran)
 find_package(PnetCDF REQUIRED COMPONENTS Fortran)

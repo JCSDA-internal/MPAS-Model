@@ -294,7 +294,7 @@ gfortran:
 	"CC_SERIAL = gcc" \
 	"CXX_SERIAL = g++" \
 	"FFLAGS_PROMOTION = -fdefault-real-8 -fdefault-double-8" \
-	"FFLAGS_OPT = -O3 -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form -fallow-argument-mismatch -fallow-invalid-boz" \
+	"FFLAGS_OPT = -O3 -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form" \
 	"CFLAGS_OPT = -O3 -m64" \
 	"CXXFLAGS_OPT = -O3 -m64" \
 	"LDFLAGS_OPT = -O3 -m64" \
