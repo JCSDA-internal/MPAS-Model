@@ -100,6 +100,9 @@ macro(mpas_fortran_target _tgt)
     set_target_properties(${_tgt} PROPERTIES Fortran_FORMAT FREE)
     target_compile_definitions(${_tgt} PRIVATE _MPI=1)
     target_compile_definitions(${_tgt} PRIVATE USE_PIO2=1)
+    if(NOT MPAS_DOUBLE_PRECISION)
+      target_compile_definitions(${_tgt} PRIVATE "-DSINGLE_PRECISION")
+    endif()
 
     # Enable OpenMP support
     if(MPAS_OPENMP)
