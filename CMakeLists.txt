@@ -298,4 +298,3 @@ install(EXPORT ${PROJECT_NAME}Exports NAMESPACE ${PROJECT_NAME}::
 install(EXPORT ${PROJECT_NAME}ExportsCore NAMESPACE ${PROJECT_NAME}::core::
         FILE ${_project_name_lower}-targets-core.cmake
         DESTINATION ${CONFIG_INSTALL_DESTINATION})
-
