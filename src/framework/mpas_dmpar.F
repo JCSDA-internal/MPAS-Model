@@ -165,7 +165,7 @@ include 'mpif.h'
 !      module procedure mpas_dmpar_exch_halo_adj_field1d_integer
 !      module procedure mpas_dmpar_exch_halo_adj_field2d_integer
 !      module procedure mpas_dmpar_exch_halo_adj_field3d_integer
-!      module procedure mpas_dmpar_exch_halo_adj_field1d_real
+      module procedure mpas_dmpar_exch_halo_adj_field1d_real
       module procedure mpas_dmpar_exch_halo_adj_field2d_real
 !      module procedure mpas_dmpar_exch_halo_adj_field3d_real
 !      module procedure mpas_dmpar_exch_halo_adj_field4d_real
@@ -177,7 +177,7 @@ include 'mpif.h'
 !   private :: mpas_dmpar_exch_halo_adj_field1d_integer
 !   private :: mpas_dmpar_exch_halo_adj_field2d_integer
 !   private :: mpas_dmpar_exch_halo_adj_field3d_integer
-!   private :: mpas_dmpar_exch_halo_adj_field1d_real
+   private :: mpas_dmpar_exch_halo_adj_field1d_real
    private :: mpas_dmpar_exch_halo_adj_field2d_real
 !   private :: mpas_dmpar_exch_halo_adj_field3d_real
 !   private :: mpas_dmpar_exch_halo_adj_field4d_real
@@ -6156,14 +6156,195 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
    end subroutine mpas_dmpar_exch_halo_field5d_real!}}}
 
 !-----------------------------------------------------------------------
+!  routine mpas_dmpar_exch_halo_adj_field1d_real
+!
+!> \brief MPAS dmpar halo exchange adjoint 1D real field
+!> \author BJ Jung
+!> \date   04/2022
+!> \details
+!>  This routine handles the adjoint of halo exchange communication of an input field across all processors.
+!>  It accumulates the values of owned point with the values of halos. It is based on mpas_dmpar_exch_halo_field1d_real.
+!
+!-----------------------------------------------------------------------
+   subroutine mpas_dmpar_exch_halo_adj_field1d_real(field, haloLayersIn)!{{{
+
+      implicit none
+
+      type (field1dReal), pointer :: field !< Input: Field to communicate
+      integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
+
+      type (dm_info), pointer :: dminfo
+      type (field1dReal), pointer :: fieldCursor, fieldCursor2
+      type (mpas_exchange_list), pointer :: exchListPtr
+      type (mpas_communication_list), pointer :: sendList, recvList, commListPtr
+      integer :: mpi_ierr, threadNum
+      integer :: nHaloLayers, iHalo, i
+      integer :: bufferOffset, nAdded
+      integer, dimension(:), pointer :: haloLayers
+
+      if ( .not. field % isActive ) then
+#ifdef MPAS_DEBUG
+         call mpas_log_write(' -- Skipping halo exchange for deactivated field: ' // trim(field % fieldName))
+#endif
+         return
+      end if
+
+      do i = 1, 1
+        if(field % dimSizes(i) <= 0) then
+          return
+        end if
+      end do
+
+      dminfo => field % block % domain % dminfo
+      threadNum = mpas_threading_get_thread_num()
+
+      if ( threadNum == 0 ) then
+        if(present(haloLayersIn)) then
+          nHaloLayers = size(haloLayersIn)
+          allocate(haloLayers(nHaloLayers))
+          do iHalo = 1, nHaloLayers
+            haloLayers(iHalo) = haloLayersIn(iHalo)
+          end do
+        else
+          nHaloLayers = size(field % sendList % halos)
+          allocate(haloLayers(nHaloLayers))
+          do iHalo = 1, nHaloLayers
+            haloLayers(iHalo) = iHalo
+          end do
+        end if
+
+#ifdef _MPI
+
+        ! Setup Communication Lists
+        call mpas_dmpar_build_comm_lists(field % sendList, field % recvList, haloLayers, field % dimsizes, sendList, recvList)
+
+        ! Allocate space in recv lists, and initiate mpi_irecv calls
+        commListPtr => sendList
+        do while(associated(commListPtr))
+          allocate(commListPtr % rbuffer(commListPtr % nList))
+          nullify(commListPtr % ibuffer)
+          call MPI_Irecv(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, dminfo % comm, commListPtr % reqID, mpi_ierr)
+
+          commListPtr => commListPtr % next
+        end do
+
+        ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
+        commListPtr => recvList
+        do while(associated(commListPtr))
+          allocate(commListPtr % rbuffer(commListPtr % nList))
+          nullify(commListPtr % ibuffer)
+          bufferOffset = 0
+          do iHalo = 1, nHaloLayers
+            nAdded = 0
+            fieldCursor => field
+            do while(associated(fieldCursor))
+              exchListPtr => fieldCursor % recvList % halos(haloLayers(iHalo)) % exchList
+              do while(associated(exchListPtr))
+                if(exchListPtr % endPointID == commListPtr % procID) then
+                  do  i = 1, exchListPtr % nList
+                    commListPtr % rbuffer(exchListPtr % srcList(i) + bufferOffset) = fieldCursor % array(exchListPtr % destList(i))
+                    fieldCursor % array(exchListPtr % destList(i)) = 0.0_RKIND
+                    nAdded = nAdded + 1
+                  end do
+                end if
+
+                exchListPtr => exchListPtr % next
+              end do
+
+              fieldCursor => fieldCursor % next
+            end do
+            bufferOffset = bufferOffset + nAdded
+          end do
+
+          call MPI_Isend(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, dminfo % my_proc_id, dminfo % comm, commListPtr % reqID, mpi_ierr)
+          commListPtr => commListPtr % next
+        end do
+#endif
+
+        ! Handle local copy. If MPI is off, then only local copies are performed.
+        fieldCursor => field
+        do while(associated(fieldCursor))
+          do iHalo = 1, nHaloLayers
+            exchListPtr => fieldCursor % copyList % halos(haloLayers(iHalo)) % exchList
+
+            do while(associated(exchListPtr))
+              fieldCursor2 => field
+              do while(associated(fieldCursor2))
+                if(exchListPtr % endPointID == fieldCursor2 % block % localBlockID) then
+                  do i = 1, exchListPtr % nList
+                    !fieldCursor2 % array(exchListPtr % destList(i)) = fieldCursor % array(exchListPtr % srcList(i))
+                    fieldCursor % array(exchListPtr % srcList(i)) = fieldCursor % array(exchListPtr % srcList(i)) + fieldCursor2 % array(exchListPtr % destList(i))
+                    fieldCursor2 % array(exchListPtr % destList(i)) = 0.0_RKIND
+                  end do
+                end if
+
+                fieldCursor2 => fieldCursor2 % next
+              end do
+
+              exchListPtr => exchListPtr % next
+            end do
+          end do
+
+          fieldCursor => fieldCursor % next
+        end do
+
+#ifdef _MPI
+
+        ! Wait for mpi_irecv to finish, and unpack data from buffer
+        commListPtr => sendList
+        do while(associated(commListPtr))
+          call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
+          bufferOffset = 0
+          do iHalo = 1, nHaloLayers
+            nAdded = 0
+            fieldCursor => field
+            do while(associated(fieldCursor))
+              exchListPtr => fieldCursor % sendList % halos(haloLayers(iHalo)) % exchList
+              do while(associated(exchListPtr))
+                if(exchListPtr % endPointID == commListPtr % procID) then
+                  do i = 1, exchListPtr % nList
+                    !fieldCursor % array(exchListPtr % destList(i)) = commListPtr % rbuffer(exchListPtr % srcList(i) + bufferOffset)
+                    fieldCursor % array(exchListPtr % srcList(i)) = fieldCursor % array(exchListPtr % srcList(i)) + commListPtr % rbuffer(exchListPtr % destList(i) + bufferOffset)
+                    commListPtr % rbuffer(exchListPtr % destList(i) + bufferOffset) = 0.0_RKIND
+                  end do
+                  nAdded = max(nAdded, maxval(exchListPtr % destList))
+                end if
+                exchListPtr => exchListPtr % next
+              end do
+
+              fieldCursor => fieldCursor % next
+            end do
+            bufferOffset = bufferOffset + nAdded
+          end do
+          commListPtr => commListPtr % next
+        end do
+
+        ! wait for mpi_isend to finish.
+        commListPtr => recvList
+        do while(associated(commListPtr))
+          call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
+          commListPtr => commListPtr % next
+        end do
+
+       ! Destroy commLists.
+       call mpas_dmpar_destroy_communication_list(sendList)
+       call mpas_dmpar_destroy_communication_list(recvList)
+#endif
+
+       deallocate(haloLayers)
+     end if
+
+   end subroutine mpas_dmpar_exch_halo_adj_field1d_real!}}}
+
+!-----------------------------------------------------------------------
 !  routine mpas_dmpar_exch_halo_adj_field2d_real
 !
 !> \brief MPAS dmpar halo exchange adjoint 2D real field
-!> \author Doug Jacobsen
-!> \date   03/26/13
+!> \author BJ Jung
+!> \date   09/2020
 !> \details
-!>  This routine handles the halo exchange communication of an input field across all processors.
-!>  It requires exchange lists to be created prior to calling this routine.
+!>  This routine handles the adjoint of halo exchange communication of an input field across all processors.
+!>  It accumulates the values of owned point with the values of halos. It is based on mpas_dmpar_exch_halo_field2d_real.
 !
 !-----------------------------------------------------------------------
    subroutine mpas_dmpar_exch_halo_adj_field2d_real(field, haloLayersIn)!{{{
