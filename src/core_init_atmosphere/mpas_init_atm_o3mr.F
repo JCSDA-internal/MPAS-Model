@@ -228,8 +228,8 @@
        do k = 1,nFGLevels
           if(field%xlvl == p_fg(k,1)) exit
        enddo
-       call mpas_log_write('Interpolating O3MR at $r $r $i',realArgs=(/field%xlvl,p_fg(k,1)/), &
-                           intArgs=(/k/))
+       call mpas_log_write('Interpolating O3MR at $r $r $i',&
+         realArgs=(/real(field%xlvl,RKIND),p_fg(k,1)/), intArgs=(/k/))
        nInterpPoints = nCells
        latPoints => latCell
        lonPoints => lonCell
