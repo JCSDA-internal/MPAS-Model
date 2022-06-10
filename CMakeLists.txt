@@ -234,12 +234,12 @@ set(MPAS_MAIN_SRC  ${CMAKE_CURRENT_SOURCE_DIR}/src/driver/mpas.F)
 set(MPAS_SUBDRIVER_SRC  ${CMAKE_CURRENT_SOURCE_DIR}/src/driver/mpas_subdriver.F)
 
 ## Create targets
-add_subdirectory(src/external/ezxml) # Target: MPAS::external::ezxml
+add_subdirectory(src/external/ezxml)         # Target: MPAS::external::ezxml
 add_subdirectory(src/external/esmf_time_f90) # Target: MPAS::external::esmf_time
-add_subdirectory(src/tools/input_gen) # Targets: namelist_gen, streams_gen
-add_subdirectory(src/tools/registry) # Targets: mpas_parse_<core_name>
-add_subdirectory(src/framework) # Target: MPAS::framework
-add_subdirectory(src/operators) # Target: MPAS::operators
+add_subdirectory(src/tools/input_gen)        # Targets: namelist_gen, streams_gen
+add_subdirectory(src/tools/registry)         # Targets: mpas_parse_<core_name>
+add_subdirectory(src/framework)              # Target: MPAS::framework
+add_subdirectory(src/operators)              # Target: MPAS::operators
 
 foreach(_core IN LISTS MPAS_CORES)
     add_subdirectory(src/core_${_core}) # Target: MPAS::core::<core_name>
