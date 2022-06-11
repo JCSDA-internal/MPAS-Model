@@ -4,15 +4,15 @@ ifeq ($(CORE),atmosphere)
 COREDEF = -Dmpas
 endif
 
-all: lookup_tables core_physics_init core_physics_wrf core_physics
+all: dummy lookup_tables core_physics_init core_physics_wrf core_physics
 
 dummy:
 	echo "****** compiling physics ******"
 
 OBJS_init = \
-	mpas_atmphys_constants.o     \
-	mpas_atmphys_date_time.o     \
-	mpas_atmphys_functions.o     \
+	mpas_atmphys_constants.o \
+	mpas_atmphys_date_time.o \
+	mpas_atmphys_functions.o \
 	mpas_atmphys_utilities.o
 
 OBJS = \
@@ -52,6 +52,7 @@ core_physics_wrf: core_physics_init
 	(cd physics_wrf; $(MAKE) all COREDEF="$(COREDEF)")
 
 core_physics_init: $(OBJS_init)
+	(cd physics_wrf; $(MAKE) physics_wrf_init COREDEF="$(COREDEF)")
 	ar -ru libphys.a $(OBJS_init)
 
 core_physics: core_physics_wrf
@@ -86,6 +87,7 @@ mpas_atmphys_driver.o: \
 
 mpas_atmphys_driver_cloudiness.o: \
 	mpas_atmphys_constants.o \
+	mpas_atmphys_functions.o \
 	mpas_atmphys_vars.o
 
 mpas_atmphys_driver_convection.o: \

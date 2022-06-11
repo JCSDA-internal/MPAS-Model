@@ -64,6 +64,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-11.
 ! * corrected the calculation of the surface pressure, mainly extrapolation of the air density to the surface.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-25.
+! * added the initialization of the local ozone mixing ratio.
+!   Laura D. Fowler (laura@ucar.edu) / 2022-03-08.
 
 
  contains
@@ -113,6 +115,7 @@
  if(.not.allocated(qi_p)   ) allocate(qi_p(ims:ime,kms:kme,jms:jme)   )
  if(.not.allocated(qs_p)   ) allocate(qs_p(ims:ime,kms:kme,jms:jme)   )
  if(.not.allocated(qg_p)   ) allocate(qg_p(ims:ime,kms:kme,jms:jme)   )
+ if(.not.allocated(qo3_p)  ) allocate(qo3_p(ims:ime,kms:kme,jms:jme)  )
 
  pbl_select: select case (trim(pbl_scheme))
     case("bl_mynn")
@@ -177,6 +180,7 @@
  if(allocated(qi_p)    ) deallocate(qi_p    )
  if(allocated(qs_p)    ) deallocate(qs_p    )
  if(allocated(qg_p)    ) deallocate(qg_p    )
+ if(allocated(qo3_p)   ) deallocate(qo3_p   )
 
  pbl_select: select case (trim(pbl_scheme))
     case("bl_mynn")
@@ -215,7 +219,7 @@
 !local pointers:
  character(len=StrKIND),pointer:: pbl_scheme
 
- integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
+ integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg,index_qo3
  integer,pointer:: index_ni
 
  real(kind=RKIND),dimension(:),pointer    :: latCell,lonCell
@@ -224,7 +228,7 @@
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,pressure_b,rtheta_p,rtheta_b
  real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,theta_m,pressure_p,u,v,w
- real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
+ real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg,qo3
  real(kind=RKIND),dimension(:,:),pointer  :: ni
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
@@ -236,7 +240,7 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
-!call mpas_log_write('--- enter subroutine MPAS_to_phys:')
+!call mpas_log_write('--- enter subroutine MPAS_to_physics:')
 !call mpas_log_write('ims=$i ime=$i',intArgs=(/ims,ime/))
 !call mpas_log_write('jms=$i jme=$i',intArgs=(/jms,jme/))
 !call mpas_log_write('kms=$i kme=$i',intArgs=(/kms,kme/))
@@ -269,12 +273,13 @@
  call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
  call mpas_pool_get_array(state,'w'      ,w      ,time_lev)
 
- call mpas_pool_get_dimension(state,'index_qv',index_qv)
- call mpas_pool_get_dimension(state,'index_qc',index_qc)
- call mpas_pool_get_dimension(state,'index_qr',index_qr)
- call mpas_pool_get_dimension(state,'index_qi',index_qi)
- call mpas_pool_get_dimension(state,'index_qs',index_qs)
- call mpas_pool_get_dimension(state,'index_qg',index_qg)
+ call mpas_pool_get_dimension(state,'index_qv' ,index_qv )
+ call mpas_pool_get_dimension(state,'index_qc' ,index_qc )
+ call mpas_pool_get_dimension(state,'index_qr' ,index_qr )
+ call mpas_pool_get_dimension(state,'index_qi' ,index_qi )
+ call mpas_pool_get_dimension(state,'index_qs' ,index_qs )
+ call mpas_pool_get_dimension(state,'index_qg' ,index_qg )
+ call mpas_pool_get_dimension(state,'index_qo3',index_qo3)
 
  call mpas_pool_get_array(state,'scalars',scalars,time_lev)
  qv => scalars(index_qv,:,:)
@@ -317,6 +322,28 @@
  enddo
  enddo
  enddo
+
+!initialize the ozone mixing ratio if present in Registry:
+ nullify(qo3)
+ if(index_qo3 .gt. -1) then
+    qo3 => scalars(index_qo3,:,:)
+
+    do j = jts,jte
+    do k = kts,kte
+    do i = its,ite
+       qo3_p(i,k,j) = qo3(k,i)
+    enddo
+    enddo
+    enddo
+ else
+    do j = jts,jte
+    do k = kts,kte
+    do i = its,ite
+       qo3_p(i,k,j) = 0._RKIND
+    enddo
+    enddo
+    enddo
+ endif
 
  pbl_select: select case (trim(pbl_scheme))
     case("bl_mynn")
@@ -466,6 +493,8 @@
     plrad(i) = pres2_p(i,kte+1,j) 
  enddo
  enddo
+
+!call mpas_log_write('--- end subroutine MPAS_to_physics:')
 
  end subroutine MPAS_to_physics
 

@@ -23,6 +23,9 @@ module atm_time_integration
    use mpas_atmphys_driver_microphysics
    use mpas_atmphys_todynamics
    use mpas_atmphys_utilities
+#ifdef DO_CHEMISTRY
+   use mpas_chemistry_todynamics,only: chemistry_get_tend
+#endif
 #endif
 
    use mpas_atm_boundaries, only : nSpecZone, nRelaxZone, nBdyZone, mpas_atm_get_bdy_state, mpas_atm_get_bdy_tend  ! regional_MPAS addition
@@ -205,6 +208,9 @@ module atm_time_integration
       type (mpas_pool_type), pointer :: tend
       type (mpas_pool_type), pointer :: tend_physics
       type (mpas_pool_type), pointer :: lbc  ! regional_MPAS addition
+#ifdef DO_CHEMISTRY
+      type (mpas_pool_type), pointer :: tend_chemistry
+#endif
 
       type (field2DReal), pointer :: theta_m_field
       type (field3DReal), pointer :: scalars_field
@@ -447,6 +453,20 @@ module atm_time_integration
          block => block % next
       end do
       call mpas_timer_stop('physics_get_tend')
+#ifdef DO_CHEMISTRY
+      call mpas_timer_start('chemistry_get_tend')
+      block => domain % blocklist
+      do while (associated(block))
+         call mpas_pool_get_subpool(block % structs, 'tend_chemistry', tend_chemistry)
+         call chemistry_get_tend(block % configs, &
+                                            mesh, &
+                                           state, &
+                                            tend, &
+                                  tend_chemistry)
+         block => block % next
+      end do
+      call mpas_timer_stop('chemistry_get_tend')
+#endif
 #else
       !
       ! If no physics are being used, simply zero-out the physics tendency fields

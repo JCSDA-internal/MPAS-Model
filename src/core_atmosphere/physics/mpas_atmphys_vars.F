@@ -110,6 +110,8 @@
 ! * added the local variables cosa_p and sina_p needed in call to subroutine gwdo after updating module_bl_gwdo.F
 !   to that of WRF version 4.0.2
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-30.
+! * added the local variable qo3_p for the prognostic ozone mixing ratio.
+!   Laura D. Fowler (laura@ucar.edu) / 2022-03-08.
 
 
 !=================================================================================================================
@@ -179,7 +181,8 @@
     qr_p,             &!rain mixing ratio                                                   [kg/kg]
     qi_p,             &!cloud ice mixing ratio                                              [kg/kg]
     qs_p,             &!snow mixing ratio                                                   [kg/kg]
-    qg_p               !graupel mixing ratio                                                [kg/kg]
+    qg_p,             &!graupel mixing ratio                                                [kg/kg]
+    qo3_p              !ozone mixing ratio                                                  [kg/kg]
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     nc_p,             &!
@@ -761,6 +764,8 @@
 
  real(kind=RKIND),dimension(:,:),allocatable:: regime_hold
  real(kind=RKIND),dimension(:,:),allocatable:: tsk_ice
+
+!=================================================================================================================
 
 
  contains

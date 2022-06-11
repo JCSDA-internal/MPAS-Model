@@ -12,6 +12,7 @@
  use mpas_timer, only : mpas_timer_start, mpas_timer_stop
 
  use mpas_atmphys_constants, only: ep_2
+ use mpas_atmphys_functions, only: rsif,rslf
  use mpas_atmphys_vars
  use module_mp_thompson_cldfra3
  
@@ -51,7 +52,11 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-07-05.
 ! * since we removed the local variable radt_cld_scheme from mpas_atmphys_vars.F, now defines radt_cld_scheme
 !   as a pointer to config_radt_cld_scheme.
-!   Laura D. Fowler (laura@ucar.edu) / 2917-02-16.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
+! * in subroutine calc_cldfraction, replaced the calculation of qvsw and qvsi with the Thompson's functions
+!   rslf and rsif to avoid negative saturation mixing ratios when saturation vapor pressures are greater than
+!   pressure, as is seen with a 70km model top.
+!   Laura D. Fowler (laura@ucar.edu) / 2022-04-07.
 
 
  contains
@@ -303,7 +308,7 @@
  real(kind=RKIND),parameter:: svpi3 = 7.66
  real(kind=RKIND),parameter:: svpt0 = 273.15
 
- real(kind=RKIND):: esi,esw,qvsi,qvsw
+ real(kind=RKIND):: esi,esw,qvsi,qvsw,tempc
  real(kind=RKIND):: arg,denom,qcld,qvs,rhum,subsat,weight
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -315,17 +320,27 @@
  enddo
  enddo
  enddo
- 
+
  do j = jts,jte
  do k = kts,kte
  do i = its,ite
 
 !... calculation of the saturation mixing ratios over water and over ice (Murray, 1966):
-    esw = 1000. * svp1 * exp(svp2 * (t_p(i,k,j) - svpt0) / (t_p(i,k,j) - svp3))
-    esi = 1000. * svp1 * exp(svpi2 * (t_p(i,k,j) - svpt0) / (t_p(i,k,j) - svpi3))
+!   esw = 1000. * svp1 * exp(svp2 * (t_p(i,k,j) - svpt0) / (t_p(i,k,j) - svp3))
+!   esi = 1000. * svp1 * exp(svpi2 * (t_p(i,k,j) - svpt0) / (t_p(i,k,j) - svpi3))
 
-    qvsw = ep_2 * esw / (pres_p(i,k,j) - esw)
-    qvsi = ep_2 * esi / (pres_p(i,k,j) - esi)
+!   qvsw = ep_2 * esw / (pres_p(i,k,j) - esw)
+!   qvsi = ep_2 * esi / (pres_p(i,k,j) - esi)
+
+    qvsw = 0.
+    qvsi = 0.
+    tempc = t_p(i,k,j) - 273.15
+    qvsw  = rslf(pres_p(i,k,j),t_p(i,k,j))
+    if(tempc .le. 0.) then
+       qvsi = rsif(pres_p(i,k,j),t_p(i,k,j))
+    else
+       qvsi = qvsw
+    endif
 
     qcld = qc(i,k,j) + qi(i,k,j) + qs(i,k,j)
     if(qcld .lt. qcldmin) then

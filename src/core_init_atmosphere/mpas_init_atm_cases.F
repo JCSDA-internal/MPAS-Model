@@ -19,6 +19,7 @@ module init_atm_cases
    use mpas_timer
    use mpas_init_atm_static
    use mpas_init_atm_surface
+   use mpas_init_atm_o3mr
    use mpas_atmphys_constants, only: svpt0,svp1,svp2,svp3
    use mpas_atmphys_functions
    use mpas_atmphys_initialize_real
@@ -255,6 +256,7 @@ module init_atm_cases
                                    diag, diag_physics, config_init_case, block_ptr % dimensions, block_ptr % configs)
             
             if (config_met_interp) then
+               call init_atm_o3mr(mesh, block_ptr % configs, fg, diag ,state)
                call physics_initialize_real(mesh, fg, domain % dminfo, block_ptr % dimensions, block_ptr % configs)
             end if
 

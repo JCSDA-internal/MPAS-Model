@@ -9818,6 +9818,7 @@ MODULE module_ra_rrtmg_sw
 
 #if defined(mpas)
 !MPAS specific (Laura D. Fowler):
+use mpas_log
 use mpas_atmphys_constants,only : cp,g=>gravity
 use module_ra_rrtmg_vinterp,only: vinterp_ozn
 
@@ -9867,7 +9868,7 @@ CONTAINS
 !=================================================================================================================
  subroutine rrtmg_swrad( &
                        p3d,p8w,pi3d,t3d,t8w,dz8w,qv3d,qc3d,qr3d,       &
-                       qi3d,qs3d,qg3d,cldfra3d,o33d,tsk,albedo,        &
+                       qi3d,qs3d,qg3d,cldfra3d,qo33d,tsk,albedo,       &
                        xland,xice,snow,coszr,xtime,gmt,julday,radt,    &
                        degrad,declin,solcon,xlat,xlong,icloud,o3input, &
                        noznlevels,pin,o3clim,gsw,swcf,rthratensw,      &
@@ -9901,7 +9902,7 @@ CONTAINS
 
  real,intent(in),dimension(ims:ime,kms:kme,jms:jme):: re_cloud,re_ice,re_snow
  real,intent(in),dimension(ims:ime,kms:kme,jms:jme),optional:: &
-    cldfra3d,qv3d,qc3d,qr3d,qi3d,qs3d,qg3d,o33d
+    cldfra3d,qv3d,qc3d,qr3d,qi3d,qs3d,qg3d,qo33d
 
 !--- additional input arguments to use the CAM ozone climatology:
  integer,intent(in):: noznlevels
@@ -9938,7 +9939,7 @@ CONTAINS
  real,dimension(1):: asdir,asdif,aldir,aldif,coszen
  real,dimension(1,1:kte-kts+1):: pdel,cicewp,cliqwp,csnowp,reliq,reice,resnow
  real,dimension(kts:kte):: &
-    tten1d,cldfra1d,dz1d,p1d,t1d,qv1d,qc1d,qr1d,qi1d,qs1d,qg1d,o31d
+    tten1d,cldfra1d,dz1d,p1d,t1d,qv1d,qc1d,qr1d,qi1d,qs1d,qg1d,qo31d
  real,dimension(kts:kte+1):: pw1d,tw1d
  real,dimension(kts:kte+1):: o3mmr
 
@@ -9992,15 +9993,17 @@ CONTAINS
 ! data amw   /  18.0160   /                                                  
 ! data amo   /  47.9998   /                                                  
 ! data amo2  /  31.9999   /
-                                                                                 
+
   real :: amdw     ! Molecular weight of dry air / water vapor  
   real :: amdo     ! Molecular weight of dry air / ozone
   real :: amdo2    ! Molecular weight of dry air / oxygen
-  data amdw /  1.607793 /                                                    
+  data amdw /  1.607793 /
   data amdo /  0.603461 /
   data amdo2 / 0.905190 /
 
 !-----------------------------------------------------------------------------------------------------------------
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine rrtmg_swrad:')
 
 !--- all fields are ordered vertically from bottom to top (pressures are in mb):
  ncol = 1
@@ -10044,14 +10047,14 @@ CONTAINS
              dz1d(k)     = dz8w(i,k,j)
              t1d(k)      = t3d(i,k,j)
              qv1d(k)     = amax1(qv3d(i,k,j),1.e-12)
-             o31d(k)     = 0.
+             qo31d(k)    = 0.
              qc1d(k)     = 0.
              qr1d(k)     = 0.
              qi1d(k)     = 0.
              qs1d(k)     = 0.
              qg1d(k)     = 0.
              cldfra1d(k) = 0.
-             if(present(o33d)) o31d(k) = o33d(i,k,j)
+             if(present(qo33d)) qo31d(k) = qo33d(i,k,j)
           enddo
 
           !--- initialize the local arrays containing the different cloud water and ice condenstates:
@@ -10164,9 +10167,13 @@ CONTAINS
           ch4vmr(ncol,kte+1) = ch4vmr(ncol,kte) 
           n2ovmr(ncol,kte+1) = n2ovmr(ncol,kte) 
 
-          !--- initialize the ozone voume mixing ratio:
-          call inirad(o3mmr,plev,kts,kte)
-          if(o3input .eq. 2) then
+          !--- initialize the ozone volume mixing ratio:
+          if(o3input .eq. 0) then
+             call inirad(o3mmr,plev,kts,kte)
+             do k = kts,kte+1
+                o3vmr(ncol,k) = o3mmr(k)*amdo
+             enddo
+          elseif(o3input .eq. 2) then
              do k = 1, noznlevels
                 o3clim1d(k) = o3clim(i,k,j)
              enddo
@@ -10174,10 +10181,11 @@ CONTAINS
              do k = kts,kte+1
                 o3vmr(ncol,k) = o3mmr(k)
              enddo
-          else
-             do k = kts,kte+1
-                o3vmr(ncol,k) = o3mmr(k)*amdo
+          elseif(o3input .eq. 3) then
+             do k = kts,kte
+                o3vmr(ncol,k) = qo31d(k)*amdo
              enddo
+             o3vmr(ncol,kte+1) = o3vmr(ncol,kte)
           endif
 
           !--- initialize the surface albedo:
@@ -10446,6 +10454,8 @@ CONTAINS
     end do i_loop !end longitude loop.
 
  end do j_loop !end latitude loop.                                           
+
+!call mpas_log_write('--- end subroutine rrtmg_swrad:')
 
  end subroutine rrtmg_swrad
 

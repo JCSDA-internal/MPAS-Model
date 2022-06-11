@@ -91,7 +91,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-10.
 ! * since we removed the local variable radt_lw_scheme from mpas_atmphys_vars.F, now defines radt_lw_scheme
 !   as a pointer to config_radt_lw_scheme.
-!   Laura D. Fowler (laura@ucar.edu) / 2917-02-16.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
+! * in the call to rrtmg_lwrad, added the option to input prognostic instead of climatological ozone.
+!   Laura D. Fowler (laura@ucar.edu) / 2021-03-08.
 
 
  contains
@@ -827,7 +829,7 @@
  type(mpas_pool_type),intent(inout):: tend_physics
 
 !local pointers:
- logical,pointer:: config_o3climatology
+ logical,pointer:: config_o3climatology,config_o3prognostic
  character(len=StrKIND),pointer:: radt_lw_scheme
 
 !local variables:
@@ -838,6 +840,7 @@
 !call mpas_log_write(' --- enter subroutine driver_radiation_lw: ')
 
  call mpas_pool_get_config(configs,'config_o3climatology' ,config_o3climatology)
+ call mpas_pool_get_config(configs,'config_o3prognostic ' ,config_o3prognostic )
  call mpas_pool_get_config(configs,'config_radt_lw_scheme',radt_lw_scheme      )
 
 !copy MPAS arrays to local arrays:
@@ -848,29 +851,34 @@
 
     case ("rrtmg_lw")
        o3input = 0
-       if(config_o3climatology) o3input = 2
+       if(config_o3climatology) then
+          o3input = 2
+       elseif(config_o3prognostic) then
+             o3input = 3
+       endif
 
        call mpas_timer_start('RRTMG_lw')
        call rrtmg_lwrad( &
-            p3d        = pres_hyd_p    , p8w       = pres2_hyd_p , pi3d     = pi_p     , &
-            t3d        = t_p           , t8w       = t2_p        , dz8w     = dz_p     , &
-!           qv3d       = qv_p          , qc3d      = qc_p        , qi3d     = qi_p     , &
-!           qs3d       = qs_p          , cldfra3d  = cldfrac_p   , tsk      = tsk_p    , &
-            qv3d       = qvrad_p       , qc3d      = qcrad_p     , qi3d     = qirad_p  , &
-            qs3d       = qsrad_p       , cldfra3d  = cldfrac_p   , tsk      = tsk_p    , &
-            emiss      = sfc_emiss_p   , xland     = xland_p     , xice     = xice_p   , &
-            snow       = snow_p        , icloud    = icloud      , o3input  = o3input  , &
-            noznlevels = num_oznlevels , pin       = pin_p       , o3clim   = o3clim_p , &
-            glw        = glw_p         , olr       = olrtoa_p    , lwcf     = lwcf_p   , &
-            rthratenlw = rthratenlw_p  , has_reqc  = has_reqc    , has_reqi = has_reqi , &
-            has_reqs   = has_reqs      , re_cloud  = recloud_p   , re_ice   = reice_p  , &
-            re_snow    = resnow_p      , rre_cloud = rrecloud_p  , rre_ice  = rreice_p , &
-            rre_snow   = rresnow_p     , lwupt     = lwupt_p     , lwuptc   = lwuptc_p , &
-            lwdnt      = lwdnt_p       , lwdntc    = lwdntc_p    , lwupb    = lwupb_p  , &
-            lwupbc     = lwupbc_p      , lwdnb     = lwdnb_p     , lwdnbc   = lwdnbc_p , &
-            ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,      &
-            ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,      &
-            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte        &
+            p3d      = pres_hyd_p , p8w        = pres2_hyd_p   , pi3d      = pi_p       , &
+            t3d      = t_p        , t8w        = t2_p          , dz8w      = dz_p       , &
+!           qv3d     = qv_p       , qc3d       = qc_p          , qi3d      = qi_p       , &
+!           qs3d     = qs_p       , cldfra3d   = cldfrac_p     , tsk       = tsk_p      , &
+            qv3d     = qvrad_p    , qc3d       = qcrad_p       , qi3d      = qirad_p    , &
+            qs3d     = qsrad_p    , qo33d      = qo3_p         , cldfra3d  = cldfrac_p  , &
+            tsk      = tsk_p      , emiss      = sfc_emiss_p   , xland     = xland_p    , &
+            xice     = xice_p     , snow       = snow_p        , icloud    = icloud     , &
+            o3input  = o3input    , noznlevels = num_oznlevels , pin       = pin_p      , &
+            o3clim   = o3clim_p   , glw        = glw_p         , olr       = olrtoa_p   , &
+            lwcf     = lwcf_p     , rthratenlw = rthratenlw_p  , has_reqc  = has_reqc   , &
+            has_reqi = has_reqi   , has_reqs   = has_reqs      , re_cloud  = recloud_p  , &
+            re_ice   = reice_p    , re_snow    = resnow_p      , rre_cloud = rrecloud_p , &
+            rre_ice  = rreice_p   , rre_snow   = rresnow_p     , lwupt     = lwupt_p    , &
+            lwuptc   = lwuptc_p   , lwdnt      = lwdnt_p       , lwdntc    = lwdntc_p   , &
+            lwupb    = lwupb_p    , lwupbc     = lwupbc_p      , lwdnb     = lwdnb_p    , &
+            lwdnbc   = lwdnbc_p   ,                                                       &
+            ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,       &
+            ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,       &
+            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte         &
                        )
        call mpas_timer_stop('RRTMG_lw')
 

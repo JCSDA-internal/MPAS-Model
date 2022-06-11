@@ -269,6 +269,11 @@ module atm_core
       use mpas_atmphys_control
       use mpas_atmphys_init
       use mpas_atmphys_manager
+
+#ifdef DO_CHEMISTRY
+      use mpas_chemistry_init
+      use mpas_chemistry_manager
+#endif
 #endif
 
       implicit none
@@ -285,6 +290,9 @@ module atm_core
       type (mpas_pool_type), pointer :: sfc_input
       type (mpas_pool_type), pointer :: diag_physics
       type (mpas_pool_type), pointer :: atm_input
+#ifdef DO_CHEMISTRY
+      type (mpas_pool_type), pointer :: chem_input
+#endif
 
       integer :: iCell,iEdge,iVertex
       
@@ -453,6 +461,12 @@ module atm_core
          call physics_init(dminfo, clock, block % configs, mesh, diag, tend, state, 1, diag_physics, &
                            atm_input, sfc_input)
       endif
+#ifdef DO_CHEMISTRY
+      call mpas_pool_get_subpool(block % structs, 'chem_input', chem_input)
+
+      call chemistry_run_init(block % configs, clock)
+      call chemistry_init(block % configs, mesh, chem_input)
+#endif
 #endif
    
       call atm_compute_mesh_scaling(mesh, block % configs)
@@ -833,6 +847,11 @@ module atm_core
       use mpas_atmphys_driver
       use mpas_atmphys_manager
       use mpas_atmphys_update
+
+#ifdef DO_CHEMISTRY
+      use mpas_chemistry_driver,only : chemistry_driver
+      use mpas_chemistry_manager,only: chemistry_timetracker
+#endif
 #endif
    
       implicit none
@@ -859,6 +878,11 @@ module atm_core
 
 
 #ifdef DO_PHYSICS
+#ifdef DO_CHEMISTRY
+      call chemistry_timetracker(domain,clock)
+      call chemistry_driver(domain)
+#endif
+
       !proceed with physics if moist_physics is set to true:
       if(moist_physics) then
          call physics_timetracker(domain,dt,clock,itimestep,xtime_s)

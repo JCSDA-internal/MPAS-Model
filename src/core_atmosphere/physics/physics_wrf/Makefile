@@ -1,9 +1,12 @@
 .SUFFIXES: .F .o
 
-all: dummy physics_wrf
+all: dummy physics_wrf_init physics_wrf
 
 dummy:
 	echo "****** compiling physics_wrf ******"
+
+OBJS_init = \
+	module_ra_cam_support.o
 
 OBJS = \
 	libmassv.o                     \
@@ -23,7 +26,6 @@ OBJS = \
 	module_mp_thompson_cldfra3.o   \
 	module_mp_wsm6.o               \
 	module_ra_cam.o                \
-	module_ra_cam_support.o        \
 	module_ra_rrtmg_lw.o           \
 	module_ra_rrtmg_sw.o           \
 	module_ra_rrtmg_vinterp.o      \
@@ -40,6 +42,9 @@ OBJS = \
 	module_sf_oml.o                \
 	module_sf_sfclay.o             \
 	module_sf_urban.o
+
+physics_wrf_init: $(OBJS_init)
+	ar -ru ./../libphys.a $(OBJS_init)
 
 physics_wrf: $(OBJS)
 	ar -ru ./../libphys.a $(OBJS)

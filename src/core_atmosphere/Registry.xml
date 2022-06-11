@@ -28,6 +28,8 @@
                      description="A constant value of 21"/>
                 <dim name="R3"                 definition="3"
                      description="The dimensionality of vectors in $\Re^3$"/>
+                <dim name="nFGLevels"
+                     description="The number of atmospheric levels in the first-guess dataset"/>
                 <dim name="nVertLevels"
                      description="The number of atmospheric layers"/>
                 <dim name="nVertLevelsP1"      definition="nVertLevels+1"
@@ -553,6 +555,8 @@
 			<var name="smois"/>
 			<var name="tslb"/>
 			<var name="h_oml_initial"/>
+			<var name="p_fg"/>
+			<var name="o3mr_fg"/>
 		</stream>
 
 		<stream name="restart" 
@@ -880,6 +884,11 @@
 			<var name="h_oml_initial"/>
 			<var name="hu_oml"/>
 			<var name="hv_oml"/>
+			<var name="p_fg"/>
+			<var name="o3mr_fg"/>
+			<var name="OPPpres"/>
+			<var name="OPPdata"/>
+			<var name="OPPcoeffs"/>
 		</stream>
 
 		<stream name="output" 
@@ -2026,6 +2035,11 @@
                      description="logical for configuration of input ozone data in RRMTG long- and short-wave radiation"
                      possible_values=".true. for using monthly-varying ozone data; .false. for using fixed vertical profile"/>
 
+                <nml_option name="config_o3prognostic" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="logical for configuration of ozone as a prognostic variable"
+                     possible_values=".true. for using CHEM2D-OPP; .false. for using climatological ozone"/>
+
                 <nml_option name="config_microp_re" type="logical" default_value="false" in_defaults="false"
                      units="-"
                      description="logical for calculation of the effective radii for cloud water, cloud ice, and snow"
@@ -2070,6 +2084,10 @@
                      units="-"
                      description="time interval between updates of greeness fraction"
                      possible_values="`DD_HH:MM:SS' or `none'"/>
+
+                <nml_option name="config_OPP_update" type="character" default_value="24:00:00" in_defaults="false"
+                     units="-"
+                     description="time interval between updates of the coefficients in the linearized CHEM2D-OPP"/>
 
                 <nml_option name="config_bucket_update" type="character" default_value="none"
                      units="-"
@@ -3245,5 +3263,20 @@
 <!-- **************************************************************************************** -->
 
 #include "diagnostics/Registry_diagnostics.xml"
+#include "chemistry/Registry_chems.xml"
+
+        <!-- ================================================================================================== -->
+        <!-- ... FIRST-GUESS DATA NEEDED FOR INTERPOLATION OF PHYSICS DIAGNOSTICS:                              -->
+        <!-- ================================================================================================== -->
+
+        <var_struct name="fg" time_levs="1">
+
+                <var name="o3mr_fg" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+                     description="First guess ozone mixing ratios"/>
+
+                <var name="p_fg" type="real" dimensions="nFGLevels nCells Time" units="Pa"
+                     description="First-guess pressures"/>
+
+        </var_struct>
 
 </registry>

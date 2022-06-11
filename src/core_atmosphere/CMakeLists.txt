@@ -36,7 +36,6 @@ set(_atm_core_physics_srcs
         mpas_atmphys_vars.F)
 list(TRANSFORM _atm_core_physics_srcs PREPEND physics/)
 
-## Unused
 # physics/physics_wrf/
 set(_atm_core_physics_wrf_srcs
         libmassv.F
@@ -74,6 +73,18 @@ set(_atm_core_physics_wrf_srcs
         module_sf_sfclay.F
         module_sf_urban.F)
 list(TRANSFORM _atm_core_physics_wrf_srcs PREPEND physics/physics_wrf/)
+
+# chemistry/
+set(_atm_core_chemistry_srcs
+        chemistry_opp/o3_gfs.F
+        mpas_chemistry_driver.F
+        mpas_chemistry_init.F
+        mpas_chemistry_interface.F
+        mpas_chemistry_manager.F
+        mpas_chemistry_opp.F
+        mpas_chemistry_todynamics.F)
+list(TRANSFORM _atm_core_chemistry_srcs PREPEND chemistry/)
+
 
 # diagnostics/
 set(_atm_core_diagnostics_srcs
@@ -121,12 +132,14 @@ set(atm_core_inc
 add_library(core_atmosphere ${_atm_core_srcs}
                             ${_atm_core_physics_srcs}
                             ${_atm_core_physics_wrf_srcs}
+                            ${_atm_core_chemistry_srcs}
                             ${_atm_core_diagnostics_srcs}
                             ${_atm_core_dynamics_srcs})
 
 mpas_core_target(CORE atmosphere TARGET core_atmosphere INCLUDES ${atm_core_inc})
 
 target_compile_definitions(core_atmosphere PRIVATE DO_PHYSICS=1)
+target_compile_definitions(core_atmosphere PRIVATE DO_CHEMISTRY=1)
 target_compile_definitions(core_atmosphere PRIVATE mpas=1)
 
 #Get physics_wrf tables from MPAS-Data

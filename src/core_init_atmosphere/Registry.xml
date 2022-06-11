@@ -913,6 +913,9 @@
 
                         <var name="qr" array_group="moist" units="kg kg^{-1}"
                              description="Rain water mixing ratio"/>
+
+                        <var name="qo3" array_group="passive" units="kg kg^{-1}"
+                             description="Ozone mixing ratio"/>
                 </var_array>
 
                 <!-- Climatology for ocean mixed-layer depth -->
@@ -973,6 +976,9 @@
 
                 <var name="sh_fg" name_in_code="sh" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
                      description="First guess specific humidity"/>
+
+                <var name="o3mr_fg" name_in_code="o3" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+                     description="First guess ozone mixing ratio"/>
 
                 <var name="soilz_fg" name_in_code="soilz" type="real" dimensions="nCells Time" units="m"
                      description="First guess soil height"/>
