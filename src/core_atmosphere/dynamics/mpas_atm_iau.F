@@ -64,12 +64,17 @@ module mpas_atm_iau
 
       if(trim(iau_opt) == 'on') then   ! HA: We should be able to expand this for more options later on.
             
-         nsteps_iau = nint(time_window_sec / dt)
+         nsteps_iau = nint(time_window_sec / dt)  ! how many steps to which analysis increments (=Xamb) are applied.
          !if(debug) call mpas_log_write('atm_compute_iau_coef: nsteps_iau = $i', intArgs=(/nsteps_iau/))
       
+         ! In the atm_add_tend_anal_incr subroutine, the weight function (wgt_iau) will be applied as below.
+         !   f_wgt = 1/nsteps_iau = dt/time_window_sec  ! this can be expanded for 4DIAU later.
+         !   dX/dt = Xamb/dt * f_wgt
+         !         = Xamb/dt * dt/time_window_sec
+         !         = Xamb/time_window_sec  
+         !=> dX/dt = Xamb * wgt_iau    where wgt_iau = 1 / time_window_sec
+
          if(itimestep <= nsteps_iau) then
-            !wgt_iau = 1./nsteps_iau     
-            !wgt_iau = nint(dt /time_window_sec), which will be divided by dt when applied later.
             wgt_iau = 1.0_RKIND / time_window_sec
             if(debug) call mpas_log_write('atm_compute_iau_coef: wgt_iau = $r', realArgs=(/wgt_iau/))
          end if
@@ -176,7 +181,6 @@ module mpas_atm_iau
          cell1 = cellsOnEdge(1,i)     ! added by Soyoung (Jan-13-2022)
          cell2 = cellsOnEdge(2,i)     ! added by Soyoung (Jan-13-2022)
          do k = 1, nVertLevels
-           !tend_ru(k,i) = tend_ru(k,i) + wgt_iau * rho_edge(k,i) * u_amb(k,i)    ! commented out by Soyoung (Jan-14-2022)
             rho_amb_edge = 0.5_RKIND * (rho_amb(k,cell1)/zz(k,cell1) + rho_amb(k,cell2)/zz(k,cell2))     ! added by Soyoung (Jan-14-2022)
             tend_ru(k,i) = tend_ru(k,i) + wgt_iau * (rho_edge(k,i) * u_amb(k,i) + rho_amb_edge * u(k,i)) ! added by Soyoung (Jan-14-2022)
          enddo
@@ -186,7 +190,6 @@ module mpas_atm_iau
       do i = 1, nCellsSolve
          do k = 1, nVertLevels
             tend_rho(k,i) = tend_rho(k,i) + wgt_iau * rho_amb(k,i)/zz(k,i)
-           !tend_rho(k,i) = tend_rho(k,i) + wgt_iau * rho_amb(k,i)/zz(k,i)/dt    ! Soyoung: 1/dt is included in wgt_iau (See atm_iau_coef).
          enddo
       enddo
       
