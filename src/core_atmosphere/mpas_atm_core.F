@@ -132,6 +132,10 @@ module atm_core
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('Error reading IAU files',                                                          messageType=MPAS_LOG_ERR)
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_CRIT)
+      else  ! Added by Soyoung on Jan-2022
+         call mpas_log_write('*********************************')
+         call mpas_log_write('Done reading the IAU input stream')
+         call mpas_log_write('*********************************')
       end if
       call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='iau', ierr=ierr)
 

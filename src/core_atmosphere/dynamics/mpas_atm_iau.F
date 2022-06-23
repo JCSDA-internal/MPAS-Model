@@ -64,11 +64,17 @@ module mpas_atm_iau
 
       if(trim(iau_opt) == 'on') then   ! HA: We should be able to expand this for more options later on.
             
-         nsteps_iau = nint(time_window_sec / dt)
+         nsteps_iau = nint(time_window_sec / dt)  ! how many steps to which analysis increments (=Xamb) are applied.
          !if(debug) call mpas_log_write('atm_compute_iau_coef: nsteps_iau = $i', intArgs=(/nsteps_iau/))
       
+         ! In the atm_add_tend_anal_incr subroutine, the weight function (wgt_iau) will be applied as below.
+         !   f_wgt = 1/nsteps_iau = dt/time_window_sec  ! this can be expanded for 4DIAU later.
+         !   dX/dt = Xamb/dt * f_wgt
+         !         = Xamb/dt * dt/time_window_sec
+         !         = Xamb/time_window_sec  
+         !=> dX/dt = Xamb * wgt_iau    where wgt_iau = 1 / time_window_sec
+
          if(itimestep <= nsteps_iau) then
-            !wgt_iau = 1./nsteps_iau     
             wgt_iau = 1.0_RKIND / time_window_sec
             if(debug) call mpas_log_write('atm_compute_iau_coef: wgt_iau = $r', realArgs=(/wgt_iau/))
          end if
@@ -98,9 +104,13 @@ module mpas_atm_iau
       type (mpas_pool_type), pointer :: mesh
       
       integer :: iEdge, iCell, i, j, k, n
+      integer :: cell1, cell2                               ! added by Soyoung (Jan-13-2022)
       integer, pointer :: nCells, nEdges, nCellsSolve, nEdgesSolve, nVertLevels
       integer, pointer:: index_qv
       integer, pointer:: moist_start, moist_end
+      integer, dimension(:,:), pointer :: cellsOnEdge       ! added by Soyoung (Jan-13-2022)
+      real (kind=RKIND) :: rho_amb_edge                     ! added by Soyoung (Jan-14-2022)
+      ! Soyoung: amb stands for A-minus-B (e.g., analysis increments) in this module.
       
       real (kind=RKIND), dimension(:,:), pointer :: rho_edge, rho_zz, theta_m, theta, u, zz, &
                                                     tend_th, tend_w
@@ -132,11 +142,13 @@ module mpas_atm_iau
       call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
       
       call mpas_pool_get_array(mesh, 'zz', zz)
+      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)   ! added by Soyoung (Jan-13-2022)
       
       call mpas_pool_get_array(state, 'theta_m', theta_m, 1)
       call mpas_pool_get_array(state, 'scalars', scalars, 1)
       call mpas_pool_get_array(state, 'rho_zz',   rho_zz, 2) 
       call mpas_pool_get_array(diag , 'rho_edge', rho_edge)
+      call mpas_pool_get_array(state, 'u',             u, 1)       ! added by Soyoung (Jan-13-2022)
       
       call mpas_pool_get_dimension(state, 'moist_start', moist_start)
       call mpas_pool_get_dimension(state, 'moist_end', moist_end)
@@ -166,8 +178,11 @@ module mpas_atm_iau
 
 !     add coupled tendencies for u on edges
       do i = 1, nEdgesSolve
+         cell1 = cellsOnEdge(1,i)     ! added by Soyoung (Jan-13-2022)
+         cell2 = cellsOnEdge(2,i)     ! added by Soyoung (Jan-13-2022)
          do k = 1, nVertLevels
-            tend_ru(k,i) = tend_ru(k,i) + wgt_iau * rho_edge(k,i) * u_amb(k,i)
+            rho_amb_edge = 0.5_RKIND * (rho_amb(k,cell1)/zz(k,cell1) + rho_amb(k,cell2)/zz(k,cell2))     ! added by Soyoung (Jan-14-2022)
+            tend_ru(k,i) = tend_ru(k,i) + wgt_iau * (rho_edge(k,i) * u_amb(k,i) + rho_amb_edge * u(k,i)) ! added by Soyoung (Jan-14-2022)
          enddo
       enddo
 
