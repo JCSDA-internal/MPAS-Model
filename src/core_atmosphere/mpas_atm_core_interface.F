@@ -108,6 +108,9 @@ module atm_core_interface
 #ifdef DO_PHYSICS
       use mpas_atmphys_control
       use mpas_atmphys_packages
+#ifdef DO_CHEMISTRY
+      use mpas_chemistry_packages
+#endif
 #endif
 
       implicit none
@@ -184,6 +187,13 @@ module atm_core_interface
          ierr = ierr + 1
          call mpas_log_write('Package setup failed for atmphys in core_atmosphere', messageType=MPAS_LOG_ERR)
       end if
+#ifdef DO_CHEMISTRY
+      local_ierr = chemistry_setup_packages(configs, packages, iocontext)
+      if (local_ierr /= 0) then
+         ierr = ierr + 1
+         call mpas_log_write('Package setup failed for chemistry in core_atmosphere', messageType=MPAS_LOG_ERR)
+      end if
+#endif
 #endif
 
    end function atm_setup_packages

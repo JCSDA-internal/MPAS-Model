@@ -15,6 +15,7 @@ OBJS = \
 	mpas_chemistry_interface.o \
 	mpas_chemistry_manager.o \
 	mpas_chemistry_opp.o \
+	mpas_chemistry_packages.o \
 	mpas_chemistry_todynamics.o
 
 core_chemistry_opp:

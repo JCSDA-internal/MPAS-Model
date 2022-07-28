@@ -55,18 +55,18 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_dimension(state,'index_qo3'  ,index_qo3  )
- call mpas_pool_get_dimension(state,'num_scalars',num_scalars)
-
- call mpas_pool_get_array(tend,'scalars_tend',tend_scalars)
- tend_scalars(index_qo3,:,:) = 0._RKIND
-
 !--- hit return if config_o3prognostic is set to false:
  call mpas_pool_get_config(configs,'config_o3prognostic',o3prognostic)
  if(.not. o3prognostic) return
 
  call mpas_log_write(' ')
  call mpas_log_write('--- enter subroutine chemistry_get_tend:')
+
+ call mpas_pool_get_dimension(state,'index_qo3'  ,index_qo3  )
+ call mpas_pool_get_dimension(state,'num_scalars',num_scalars)
+
+ call mpas_pool_get_array(tend,'scalars_tend',tend_scalars)
+ tend_scalars(index_qo3,:,:) = 0._RKIND
 
  call mpas_pool_get_dimension(mesh,'nCells'     ,nCells     )
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
