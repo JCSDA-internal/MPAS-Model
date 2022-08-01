@@ -220,8 +220,8 @@ module mpas_atm_iau
       do i = 1, nCellsSolve
          do k = 1, nVertLevels
             tend_th(k,i) = (1. + rvord * scalars(index_qv,k,i))   * tend_th(k,i) &
-                               + rvord * theta(k,i) * tend_scalars(index_qv,k,i) &
-                               - scalars(index_qv,k,i) * tend_rho(k,i)
+                               + rvord * theta(k,i) * (tend_scalars(index_qv,k,i) &
+                               - scalars(index_qv,k,i) * tend_rho(k,i))
             tend_rtheta(k,i) = tend_rtheta(k,i) + tend_th(k,i)
          enddo
       enddo
