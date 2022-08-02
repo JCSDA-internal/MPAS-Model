@@ -82,6 +82,7 @@ set(_atm_core_chemistry_srcs
         mpas_chemistry_interface.F
         mpas_chemistry_manager.F
         mpas_chemistry_opp.F
+        mpas_chemistry_packages.F
         mpas_chemistry_todynamics.F)
 list(TRANSFORM _atm_core_chemistry_srcs PREPEND chemistry/)
 
