@@ -55,7 +55,7 @@ endif()
 ### Dependencies
 find_package(OpenMP COMPONENTS Fortran)
 find_package(MPI REQUIRED COMPONENTS Fortran)
-find_package(NetCDF REQUIRED COMPONENTS Fortran)
+find_package(NetCDF REQUIRED COMPONENTS Fortran C)
 find_package(PnetCDF REQUIRED COMPONENTS Fortran)
 find_package(PIO REQUIRED COMPONENTS Fortran C)
 if(MPAS_PROFILE)

@@ -43,7 +43,7 @@ target_link_libraries(framework PUBLIC ${PROJECT_NAME}::external::esmf)
 target_link_libraries(framework PUBLIC ${PROJECT_NAME}::external::ezxml)
 target_link_libraries(framework PUBLIC PIO::PIO_Fortran PIO::PIO_C)
 target_link_libraries(framework PUBLIC PnetCDF::PnetCDF_Fortran)
-target_link_libraries(framework PUBLIC NetCDF::NetCDF_Fortran)
+target_link_libraries(framework PUBLIC NetCDF::NetCDF_Fortran NetCDF::NetCDF_C)
 target_link_libraries(framework PUBLIC MPI::MPI_Fortran)
 
 if(MPAS_PROFILE)
