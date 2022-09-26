@@ -235,7 +235,14 @@ set(MPAS_SUBDRIVER_SRC  ${CMAKE_CURRENT_SOURCE_DIR}/src/driver/mpas_subdriver.F)
 
 ## Create targets
 add_subdirectory(src/external/ezxml) # Target: MPAS::external::ezxml
-add_subdirectory(src/external/esmf_time_f90) # Target: MPAS::external::esmf_time
+if(ESMF_FOUND)
+  message(STATUS "Configure MPAS for external ESMF")
+  add_definitions(-DMPAS_EXTERNAL_ESMF_LIB)
+  add_library(${PROJECT_NAME}::external::esmf ALIAS esmf)
+else()
+  message(STATUS "Configure MPAS for internal ESMF")
+  add_subdirectory(src/external/esmf_time_f90) # Target: MPAS::external::esmf_time
+endif()
 add_subdirectory(src/tools/input_gen) # Targets: namelist_gen, streams_gen
 add_subdirectory(src/tools/registry) # Targets: mpas_parse_<core_name>
 add_subdirectory(src/framework) # Target: MPAS::framework
