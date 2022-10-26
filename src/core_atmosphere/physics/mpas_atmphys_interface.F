@@ -394,7 +394,7 @@
     fzm_p(i,k,j) = (zgrid(k,i)-zgrid(k-1,i)) * tem1
     fzp_p(i,k,j) = (zgrid(k+1,i)-zgrid(k,i)) * tem1
     t2_p(i,k,j)    = fzm_p(i,k,j)*t_p(i,k,j) + fzp_p(i,k,j)*t_p(i,k-1,j)
-    pres2_p(i,k,j) = fzm_p(i,k,j)*pres_p(i,k,j) + fzp_p(i,k,j)*pres_p(i,k-1,j)
+    pres2_p(i,k,j) = exp(fzm_p(i,k,j)*log(pres_p(i,k,j)) + fzp_p(i,k,j)*log(pres_p(i,k-1,j)))
  enddo
  enddo
  enddo
