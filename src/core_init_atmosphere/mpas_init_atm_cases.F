@@ -28,7 +28,13 @@ module init_atm_cases
    use mpas_timekeeping !, only: MPAS_Time_type, MPAS_TimeInterval_type, MPAS_Clock_type, &
                         !        mpas_set_time, mpas_set_timeInterval, mpas_get_time, operator(+), add_t_ti
    
+!   use module_mp_thompson_cldfra3, only: cal_cldfra3
+   
+!   use mpas_atmphys_vars, only: ims,ime,jms,jme,kms,kme
+!   use mpas_atmphys_vars, only: ids,ide,jds,jde,kds,kde
+!   use mpas_atmphys_vars, only: jts,jte,kts,kte
 
+   use mpas_atmphys_vars
 
    contains
 
@@ -44,6 +50,9 @@ module init_atm_cases
 
       use mpas_stream_manager
       use mpas_init_atm_gwd, only : compute_gwd_fields
+
+      use mpas_atmphys_interface, only : MPAS_to_physics, allocate_forall_physics, deallocate_forall_physics
+!!!      use mpas_atmphys_vars
 
       implicit none
 
@@ -81,6 +90,12 @@ module init_atm_cases
       integer, pointer :: nEdges
       integer, pointer :: nVertLevels
 
+      integer:: time_lev
+      integer:: thread
+      integer:: nThreads
+      integer,dimension(:),pointer:: cellSolveThreadStart, cellSolveThreadEnd
+      integer, pointer :: nCellsSolve
+
       ! The next four variables are needed in the argument list for blend_bdy_terrain
       ! with the dryrun argument set to true; accordingly, we never actually need to
       ! set these pointers to fields
@@ -89,6 +104,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(:), pointer :: ter
       integer, dimension(:), pointer :: bdyMaskCell
 
+      logical,pointer:: config_gr_cldmask, config_gr_cldtopz
 
       call mpas_pool_get_config(domain % blocklist % configs, 'config_init_case', config_init_case)
 
@@ -167,6 +183,10 @@ module init_atm_cases
          block_ptr => domain % blocklist
 
          do while (associated(block_ptr))
+
+            call mpas_log_write('chk001 ')
+            call mpas_pool_get_config(block_ptr % configs,'config_gr_cldmask',config_gr_cldmask)
+            call mpas_pool_get_config(block_ptr % configs,'config_gr_cldtopz',config_gr_cldtopz)
 
             call mpas_pool_get_config(block_ptr % configs, 'config_static_interp', config_static_interp)
             call mpas_pool_get_config(block_ptr % configs, 'config_native_gwd_static', config_native_gwd_static)
@@ -254,9 +274,70 @@ module init_atm_cases
             call init_atm_case_gfs(block_ptr, mesh, nCells, nEdges, nVertLevels, fg, state, &
                                    diag, diag_physics, config_init_case, block_ptr % dimensions, block_ptr % configs)
             
+
+!!!!!  added by WS !!!!!
+
+ if (config_gr_cldmask.or.config_gr_cldtopz) then
+
+ call mpas_log_write('chk111 ')
+
+ call mpas_pool_get_dimension(block_ptr % dimensions, 'nCellsSolve', nCellsSolve)
+
+ ims=1   ; ime = nCellsSolve
+ jms=1   ; jme=1
+ kms=1   ; kme = nVertLevels+1                                                                                                    
+
+ ids=ims ; ide=ime + 1
+ jds=jms ; jde=jme + 1
+ kds=kms ; kde=kme 
+
+ its=ims ; ite = ime 
+ jts=jms ; jte = jme
+ kts=kms ; kte = kme-1
+
+ call mpas_log_write('     IMS =$i   IME =$i', intArgs=(/ims,ime/))
+ call mpas_log_write('     JMS =$i   JME =$i', intArgs=(/jms,jme/))
+ call mpas_log_write('     KMS =$i   KME =$i', intArgs=(/kms,kme/))
+ call mpas_log_write('     IDS =$i   IDE =$i', intArgs=(/ids,ide/))
+ call mpas_log_write('     JDS =$i   JDE =$i', intArgs=(/jds,jde/))
+ call mpas_log_write('     KDS =$i   KDE =$i', intArgs=(/kds,kde/))
+ call mpas_log_write('     ITS =$i   ITE =$i', intArgs=(/its,ite/))
+ call mpas_log_write('     JTS =$i   JTE =$i', intArgs=(/jts,jte/))
+ call mpas_log_write('     KTS =$i   KTE =$i', intArgs=(/kts,kte/))
+
+#ifdef MPAS_OPENMP
+               nThreads = OMP_get_num_threads()
+#else 
+               nThreads = 1
+#endif
+
+  allocate(cellSolveThreadStart(nThreads))
+  allocate(cellSolveThreadEnd(nThreads))
+
+#ifdef MPAS_OPENMP
+
+#else 
+  cellSolveThreadStart(1) = 1
+  cellSolveThreadEnd(1)   = nCellsSolve 
+#endif
+
+            call allocate_forall_physics(block_ptr%configs)
+
+            time_lev = 1 
+
+            do thread=1,nThreads
+               call MPAS_to_physics(block_ptr%configs,mesh,fg,state,time_lev,diag,diag_physics, &
+                            cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
+            end do
+
+ end if
+!!!!!
+
             if (config_met_interp) then
                call physics_initialize_real(mesh, fg, domain % dminfo, block_ptr % dimensions, block_ptr % configs)
             end if
+
+            call deallocate_forall_physics(block_ptr%configs) 
 
             block_ptr => block_ptr % next
          end do
@@ -2571,6 +2652,7 @@ module init_atm_cases
 
       real (kind=RKIND), dimension(:), pointer :: rdzw, dzu, rdzu, fzm, fzp
       real (kind=RKIND), dimension(:), pointer :: vert_level, latPoints, lonPoints, ter
+      real (kind=RKIND), dimension(:), pointer :: vert_level_hr
       real (kind=RKIND), dimension(:,:), pointer :: zgrid, zxu, zz, hx
       real (kind=RKIND), dimension(:,:), pointer :: pressure, ppb, pb, rho_zz, rb, rr, tb, rtb, p, pp, dss, t, rt
       real (kind=RKIND), dimension(:), pointer :: surface_pressure
@@ -2586,7 +2668,10 @@ module init_atm_cases
       integer :: nInterpPoints, ndims
 
       integer :: nfglevels_actual
+      integer :: nhrlevels_actual
+      integer :: outside
       integer, pointer :: index_qv
+      integer, pointer :: index_qc, index_qi, index_qs
 
       integer, dimension(5) :: interp_list
       real (kind=RKIND) :: maskval
@@ -2675,6 +2760,7 @@ module init_atm_cases
       character (len=StrKIND), pointer :: config_specified_zeta_levels
       logical, pointer :: config_use_spechumd
       integer, pointer :: config_nfglevels
+      integer, pointer :: config_nhrlevels
       integer, pointer :: config_nfgsoillevels
       logical, pointer :: config_smooth_surfaces
       integer, pointer :: config_theta_adv_order
@@ -2696,6 +2782,8 @@ module init_atm_cases
       real (kind=RKIND), dimension(:), pointer :: sst
       real (kind=RKIND), dimension(:), pointer :: seaice
       real (kind=RKIND), dimension(:), pointer :: xice
+!      real (kind=RKIND), dimension(:), pointer :: cldmask
+!      real (kind=RKIND), dimension(:), pointer :: gr_bt13
       real (kind=RKIND), dimension(:,:), pointer :: u
       real (kind=RKIND), dimension(:,:), pointer :: w
       real (kind=RKIND), dimension(:,:), pointer :: theta
@@ -2720,6 +2808,10 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:), pointer :: z_fg
       real (kind=RKIND), dimension(:,:), pointer :: t_fg
       real (kind=RKIND), dimension(:,:), pointer :: rh_fg
+      real (kind=RKIND), dimension(:,:), pointer :: qc_hr_fg
+      real (kind=RKIND), dimension(:,:), pointer :: qi_hr_fg
+      real (kind=RKIND), dimension(:,:), pointer :: qs_hr_fg
+      real (kind=RKIND), dimension(:,:), pointer :: z_hr_fg
       real (kind=RKIND), dimension(:,:), pointer :: sh_fg
       real (kind=RKIND), dimension(:,:), pointer :: gfs_z
       real (kind=RKIND), dimension(:,:), pointer :: p_fg
@@ -2740,6 +2832,10 @@ module init_atm_cases
 
       character (len=StrKIND) :: errstring
 
+      logical,pointer:: config_gr_cldmask, config_gr_cldtopz
+      call mpas_pool_get_config(configs,'config_gr_cldmask',config_gr_cldmask)
+      call mpas_pool_get_config(configs,'config_gr_cldtopz',config_gr_cldtopz)
+
       call mpas_pool_get_config(configs, 'config_met_prefix', config_met_prefix)
       call mpas_pool_get_config(configs, 'config_start_time', config_start_time)
       call mpas_pool_get_config(configs, 'config_met_interp', config_met_interp)
@@ -2752,6 +2848,7 @@ module init_atm_cases
       call mpas_pool_get_config(configs, 'config_specified_zeta_levels', config_specified_zeta_levels)
       call mpas_pool_get_config(configs, 'config_use_spechumd', config_use_spechumd)
       call mpas_pool_get_config(configs, 'config_nfglevels', config_nfglevels)
+      call mpas_pool_get_config(configs, 'config_nhrlevels', config_nhrlevels)
       call mpas_pool_get_config(configs, 'config_nfgsoillevels', config_nfgsoillevels)
       call mpas_pool_get_config(configs, 'config_smooth_surfaces', config_smooth_surfaces)
       call mpas_pool_get_config(configs, 'config_theta_adv_order', config_theta_adv_order)
@@ -2867,6 +2964,9 @@ module init_atm_cases
       nz = nz1 + 1
 
       call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+      call mpas_pool_get_dimension(state, 'index_qc', index_qc)
+      call mpas_pool_get_dimension(state, 'index_qi', index_qi)
+      call mpas_pool_get_dimension(state, 'index_qs', index_qs)
 
       xnutr = 0.
       zd = 12000.
@@ -4300,7 +4400,318 @@ do iCell=1,nCells
 end do
 call mpas_log_write('Done with soil consistency check')
 
+  if (config_gr_cldmask.or.config_gr_cldtopz) then 
+  call mpas_log_write('chk222 ')
+      !
+      ! Get GOES from a separate file
+      !
+      call read_met_init('G16', .false., config_start_time(1:13), istatus)
 
+      if (istatus /= 0) then
+         call mpas_log_write('GOES file not found...')
+      else
+         call mpas_log_write('GOES file found...')
+      end if
+
+      if (istatus == 0) then
+         call read_next_met_field(field, istatus)
+         do while (istatus == 0)
+            if (trim(field % field) == 'CLDMASK' .or. trim(field % field) == 'GR_BT13' .or. trim(field % field) == 'BRTEMP') then
+
+               call mpas_log_write('PROCESSING GOES DATA')
+
+               !
+               ! Set up projection
+               !
+               call map_init(proj)
+          
+!              call mpas_log_write('projj111 = $i $i $i $r $r $r $r $r $r', &
+!                                      intArgs=(/field % iproj, field % ny, field % nx/), &
+!                                      realArgs=(/real(field % truelat1,RKIND),real(field % truelat2,RKIND),real(field % startlat,RKIND),real(field % startlon,RKIND),real(field % xlonc,RKIND),real(field % dx,RKIND)/))
+
+               if (field % iproj == PROJ_LC) then
+                  call map_set(PROJ_LC, proj, &
+                               truelat1 = real(field % truelat1,RKIND), &
+                               truelat2 = real(field % truelat2,RKIND), &
+                               lat1 = real(field % startlat,RKIND), &
+                               lon1 = real(field % startlon,RKIND), &
+                               knowni = 1.0_RKIND, & 
+                               knownj = 1.0_RKIND, &
+                               stdlon = real(field % xlonc,RKIND), &
+                               dx = real(field % dx,RKIND))
+               end if
+
+               if (trim(field % field) == 'CLDMASK') then
+                  nInterpPoints = nCells
+                  latPoints => latCell
+                  lonPoints => lonCell
+                  call mpas_pool_get_array(fg, 'cldmask', destField1d)
+                  ndims = 1
+               end if
+  
+               if (trim(field % field) == 'GR_BT13' .or. trim(field % field) == 'BRTEMP') then
+                  nInterpPoints = nCells
+                  latPoints => latCell
+                  lonPoints => lonCell
+                  call mpas_pool_get_array(fg, 'gr_bt13', destField1d)
+                  ndims = 1
+               end if
+ 
+               mask_array => landmask
+
+         interp_list(1) = FOUR_POINT
+         interp_list(2) = SEARCH
+         interp_list(3) = 0
+
+         maskval = 1.0
+         masked = -1                                                                                                          
+!!!         fillval = -999
+         fillval = 0
+         msgval = -1.e30
+
+            allocate(rslab(-2:field % nx+3, field % ny))
+            rslab(1:field % nx, 1:field % ny) = field % slab(1:field % nx, 1:field % ny)
+            rslab(0, 1:field % ny)  = field % slab(field % nx, 1:field % ny)
+            rslab(-1, 1:field % ny) = field % slab(field % nx-1, 1:field % ny)
+            rslab(-2, 1:field % ny) = field % slab(field % nx-2, 1:field % ny)
+            rslab(field % nx+1, 1:field % ny) = field % slab(1, 1:field % ny)
+            rslab(field % nx+2, 1:field % ny) = field % slab(2, 1:field % ny)
+            rslab(field % nx+3, 1:field % ny) = field % slab(3, 1:field % ny)
+
+               do i=1,nInterpPoints
+                  if (mask_array(i) /= masked) then
+                     lat = latPoints(i)*DEG_PER_RAD
+                     lon = lonPoints(i)*DEG_PER_RAD
+                     outside = 0
+                     call latlon_to_ij(proj, lat, lon, x, y)
+                     if (x < 0.5) then
+                        lon = lon + 360.0
+                        call latlon_to_ij(proj, lat, lon, x, y)
+                        outside = 1
+                     else if (x >= real(field%nx)+0.5) then
+                        lon = lon - 360.0
+                        call latlon_to_ij(proj, lat, lon, x, y)
+                        outside = 1
+                     end if
+                     if (y < 0.5) then
+                        y = 1.0
+                        outside = 1
+                     else if (y >= real(field%ny)+0.5) then
+                        y = real(field%ny)
+                        outside = 1
+                     end if
+                     if (.not.isnan(x).and..not.isnan(y).and.outside == 0) then 
+!!!               call mpas_log_write('projj222 = $i $r $r $r $r', intArgs=(/i/), realArgs=(/lat,lon,y,x/))
+                       if (maskval /= -1.0) then
+                          destField1d(i) = interp_sequence(x, y, 1, rslab, -2, field % nx + 3, 1, field % ny, 1, 1, msgval, interp_list, 1, maskval=maskval, mask_array=maskslab)
+                       else
+                          destField1d(i) = interp_sequence(x, y, 1, rslab, -2, field % nx + 3, 1, field % ny, 1, 1, msgval, interp_list, 1)
+                       end if
+                     else 
+                        destField1d(i) = fillval
+                     end if
+
+                  else
+                     if (ndims == 1) then
+                        destField1d(i) = fillval
+                     end if
+                  end if
+               end do
+               deallocate(rslab)
+
+            end if
+      
+            deallocate(field % slab)
+            call read_next_met_field(field, istatus)
+         end do
+      end if
+
+      call read_met_close()
+
+      !
+      ! Get Hydrometers from a separate HRRR file
+      !
+
+      allocate(vert_level_hr(config_nhrlevels))
+      vert_level_hr(:) = -1.0
+
+      call read_met_init('HRRR', .false., config_start_time(1:13), istatus)
+
+      if (istatus /= 0) then
+         call mpas_log_write('HRRR file not found...')
+      else
+         call mpas_log_write('HRRR file found...')
+      end if
+
+      if (istatus == 0) then
+         call read_next_met_field(field, istatus)
+         do while (istatus == 0)
+            if (trim(field % field) == 'QC' .or. trim(field % field) == 'QI' .or. trim(field % field) == 'QS' &
+                 .or. trim(field % field) == 'GHT') then
+
+               call mpas_log_write('PROCESSING HRRR DATA')
+
+            if (trim(field % field) /= 'SOILHGT') then
+
+               ! Since the hash table can only store integers, transfer the bit
+               ! pattern from
+               ! the real-valued xlvl into an integer; that the result is not an
+               ! integer version
+               ! of the level is not important, since we only want to test
+               ! uniqueness of levels
+               level_value = transfer(field % xlvl, level_value)
+               if (.not. mpas_hash_search(level_hash, level_value)) then
+                  call mpas_hash_insert(level_hash, level_value)
+                  if (mpas_hash_size(level_hash) > config_nhrlevels) then
+                     too_many_fg_levs = .true.
+                  end if
+               end if
+
+               !
+               ! In case we have more than config_nfglevels levels, just keep
+               ! cycling through
+               ! the remaining fields in the intermediate file for the purpose
+               ! of counting how
+               ! many unique levels are found using the code above
+               !
+               if (too_many_fg_levs) then
+                  call read_next_met_field(field, istatus)
+                  cycle
+               end if
+
+               do k=1,config_nhrlevels
+                  if (vert_level_hr(k) == field % xlvl .or. vert_level_hr(k) == -1.0) exit
+               end do
+               if (vert_level_hr(k) == -1.0) vert_level_hr(k) = field % xlvl
+            else
+               k = 1
+            end if
+
+               !
+               ! Set up projection
+               !
+               call map_init(proj)
+
+               call mpas_log_write('projj333 = $i $i $i $r $r $r $r $r $r', &
+                                        intArgs=(/field % iproj, field % ny, field % nx/), &
+                                        realArgs=(/real(field % truelat1,RKIND),real(field % truelat2,RKIND),real(field % startlat,RKIND),real(field % startlon,RKIND),real(field % xlonc,RKIND),real(field % dx,RKIND)/))
+
+               if (field % iproj == PROJ_LC) then
+                  call map_set(PROJ_LC, proj, &
+                               truelat1 = real(field % truelat1,RKIND), &
+                               truelat2 = real(field % truelat2,RKIND), &
+                               lat1 = real(field % startlat,RKIND), &
+                               lon1 = real(field % startlon,RKIND), &
+                               knowni = 1.0_RKIND, & 
+                               knownj = 1.0_RKIND, &
+                               stdlon = real(field % xlonc,RKIND), &
+                               dx = real(field % dx,RKIND))
+               end if
+
+               if (trim(field % field) == 'QC') then
+                 call mpas_log_write('Interpolating Qc at $i $r', intArgs=(/k/), realArgs=(/vert_level_hr(k)/))
+                 nInterpPoints = nCells
+                 latPoints => latCell
+                 lonPoints => lonCell
+                 call mpas_pool_get_array(fg, 'qc_hr', destField2d)
+                 ndims = 2
+               else if (trim(field % field) == 'QI') then
+                 call mpas_log_write('Interpolating QI at $i $r',intArgs=(/k/), realArgs=(/vert_level_hr(k)/))
+                 nInterpPoints = nCells
+                 latPoints => latCell
+                 lonPoints => lonCell
+                 call mpas_pool_get_array(fg, 'qi_hr', destField2d)
+                 ndims = 2              
+               else if (trim(field % field) == 'QS') then
+                 call mpas_log_write('Interpolating QS at $i $r',intArgs=(/k/), realArgs=(/vert_level_hr(k)/))
+                 nInterpPoints = nCells
+                 latPoints => latCell
+                 lonPoints => lonCell
+                 call mpas_pool_get_array(fg, 'qs_hr', destField2d)
+                 ndims = 2 
+                else if (trim(field % field) == 'GHT') then
+                 call mpas_log_write('Interpolating HGT at $i $r', intArgs=(/k/), realArgs=(/vert_level_hr(k)/))
+                 nInterpPoints = nCells
+                 latPoints => latCell
+                 lonPoints => lonCell
+                 call mpas_pool_get_array(fg, 'z_hr', destField2d)
+                 ndims = 2
+               end if
+
+               mask_array => landmask
+
+         interp_list(1) = FOUR_POINT
+         interp_list(2) = SEARCH
+         interp_list(3) = 0
+
+         maskval = 1.0
+         masked = -1                                                                                                          
+!         fillval = -999
+         fillval = 0
+         msgval = -1.e30
+
+            allocate(rslab(-2:field % nx+3, field % ny))
+            rslab(1:field % nx, 1:field % ny) = field % slab(1:field % nx,1:field % ny)
+            rslab(0, 1:field % ny)  = field % slab(field % nx, 1:field % ny)
+            rslab(-1, 1:field % ny) = field % slab(field % nx-1, 1:field % ny)
+            rslab(-2, 1:field % ny) = field % slab(field % nx-2, 1:field % ny)
+            rslab(field % nx+1, 1:field % ny) = field % slab(1, 1:field % ny)
+            rslab(field % nx+2, 1:field % ny) = field % slab(2, 1:field % ny)
+            rslab(field % nx+3, 1:field % ny) = field % slab(3, 1:field % ny)
+
+               do i=1,nInterpPoints
+                  if (mask_array(i) /= masked) then
+                     lat = latPoints(i)*DEG_PER_RAD
+                     lon = lonPoints(i)*DEG_PER_RAD
+                     outside = 0
+                     call latlon_to_ij(proj, lat, lon, x, y)
+
+                     if (x < 0.5) then
+                        lon = lon + 360.0
+                        call latlon_to_ij(proj, lat, lon, x, y)
+                        outside = 1
+                     else if (x >= real(field%nx)+0.5) then
+                        lon = lon - 360.0
+                        call latlon_to_ij(proj, lat, lon, x, y)
+                        outside = 1
+                     end if
+                     if (y < 0.5) then
+                        y = 1.0
+                        outside = 1
+                     else if (y >= real(field%ny)+0.5) then
+                        y = real(field%ny)
+                        outside = 1
+                     end if
+                     if (.not.isnan(x).and..not.isnan(y).and.outside == 0) then 
+
+!!!               call mpas_log_write('projj444 = $i $r $r $r $r', intArgs=(/i/), realArgs=(/lat,lon,y,x/))
+                       if (maskval /= -1.0) then
+                          destField2d(k,i) = interp_sequence(x, y, 1, rslab, -2,field % nx + 3, 1, field % ny, 1, 1, msgval, interp_list, 1, maskval=maskval,mask_array=maskslab)                                                                                   
+                       else
+                          destField2d(k,i) = interp_sequence(x, y, 1, rslab, -2,field % nx + 3, 1, field % ny, 1, 1, msgval, interp_list, 1)
+                       end if
+                     else 
+                        destField2d(k,i) = fillval
+                     end if
+
+                  else
+                     if (ndims == 2) then
+                        destField2d(k,i) = fillval
+                     end if
+                  end if
+               end do
+               deallocate(rslab)
+
+            end if
+      
+            deallocate(field % slab)
+            call read_next_met_field(field, istatus)
+         end do
+      end if
+
+      call read_met_close()
+
+  end if  !end if for config_gr_cld
       !
       ! Get SEAICE from a separate file
       !
@@ -4521,6 +4932,89 @@ call mpas_log_write('Done with soil consistency check')
          end do
       end do
 
+  if (config_gr_cldmask.or.config_gr_cldtopz) then
+ call mpas_log_write('chk333 ')
+      !                                                                                                                           
+      ! Check how many distinct levels we actually found in the HRRR data
+      !
+
+      do k=1,config_nhrlevels
+         if (vert_level_hr(k) == -1.0) exit
+      end do
+      nhrlevels_actual = k-1
+      call mpas_log_write('*************************************************')
+      call mpas_log_write('Found $i levels in the HRRR data', intArgs=(/nhrlevels_actual/))
+      call mpas_log_write('*************************************************')
+
+
+      !  
+      ! Vertically interpolate HRRR data
+      !  
+
+      call mpas_pool_get_array(fg, 'qc_hr', qc_hr_fg)
+      call mpas_pool_get_array(fg, 'qi_hr', qi_hr_fg)
+      call mpas_pool_get_array(fg, 'qs_hr', qs_hr_fg)
+      call mpas_pool_get_array(fg, 'z_hr', z_hr_fg)
+
+      allocate(sorted_arr(2,nhrlevels_actual))
+
+      do iCell=1,nCells
+
+       call mpas_log_write('icell $i' , intArgs=(/iCell/))
+         ! QC
+         sorted_arr(:,:) = -999.0
+         scalars(index_qc,:,iCell) = 0._RKIND
+         do k = 1, nhrlevels_actual
+            sorted_arr(1,k) = z_hr_fg(k,iCell)
+            if (vert_level(k) == 200100.0) sorted_arr(1,k) = 99999.0
+            sorted_arr(2,k) = qc_hr_fg(k,iCell)
+         end do
+         call mpas_quicksort(nhrlevels_actual, sorted_arr)
+         do k = nVertLevels, 1, -1
+            target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
+            scalars(index_qc,k,iCell) = vertical_interp(target_z, nhrlevels_actual-1, &
+                                       sorted_arr(:,1:nhrlevels_actual-1), order=1, extrap=0)
+            if (target_z < z_hr_fg(1,iCell) .and. k < nVertLevels) scalars(index_qc,k,iCell) = scalars(index_qc,k+1,iCell)
+         end do
+
+         ! QI
+         sorted_arr(:,:) = -999.0
+         scalars(index_qi,:,iCell) = 0._RKIND
+         do k = 1, nhrlevels_actual
+            sorted_arr(1,k) = z_hr_fg(k,iCell)
+            if (vert_level(k) == 200100.0) sorted_arr(1,k) = 99999.0
+            sorted_arr(2,k) = qi_hr_fg(k,iCell)
+         end do
+         call mpas_quicksort(nhrlevels_actual, sorted_arr)
+         do k = nVertLevels, 1, -1
+            target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
+            scalars(index_qi,k,iCell) = vertical_interp(target_z, nhrlevels_actual-1, &
+                                      sorted_arr(:,1:nhrlevels_actual-1), order=1, extrap=0)
+            if (target_z < z_hr_fg(1,iCell) .and. k < nVertLevels) scalars(index_qi,k,iCell) = scalars(index_qi,k+1,iCell)
+         end do
+
+         ! QS
+         sorted_arr(:,:) = -999.0
+         scalars(index_qs,:,iCell) = 0._RKIND
+         do k = 1, nhrlevels_actual
+            sorted_arr(1,k) = z_hr_fg(k,iCell)
+            if (vert_level(k) == 200100.0) sorted_arr(1,k) = 99999.0
+            sorted_arr(2,k) = qs_hr_fg(k,iCell)
+         end do
+         call mpas_quicksort(nhrlevels_actual, sorted_arr)
+         do k = nVertLevels, 1, -1
+            target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
+            scalars(index_qs,k,iCell) = vertical_interp(target_z, nhrlevels_actual-1, &
+                                       sorted_arr(:,1:nhrlevels_actual-1), order=1, extrap=0)
+            if (target_z < z_hr_fg(1,iCell) .and. k < nVertLevels) scalars(index_qs,k,iCell) = scalars(index_qs,k+1,iCell)
+         end do
+
+      end do
+
+      deallocate(sorted_arr)
+
+  end if
+
       !  
       ! Vertically interpolate meteorological data
       !  
@@ -4716,6 +5210,10 @@ call mpas_log_write('Done with soil consistency check')
                !
                rs = rslf(pressure(k,iCell),t(k,iCell))
                scalars(index_qv,k,iCell) = 0.01_RKIND*rs*relhum(k,iCell)
+
+!!!!!!! add for new hydrometers related to GOES !!!!!! 
+!!!               scalars(index_qc,k,iCell) = 0.01_RKIND*rs*relhum(k,iCell)
+!!!!!!!!
              enddo
          enddo
       else
@@ -4758,8 +5256,9 @@ call mpas_log_write('Done with soil consistency check')
             t(k,iCell) = t(k,iCell) * (p0 / pressure(k,iCell)) ** (rgas / cp)
 
             ! RHO_ZZ
-            rho_zz(k,iCell) = pressure(k,iCell) / rgas / &
-                              (p(k,iCell) * t(k,iCell) * (1.0 + (rvord - 1.0) * scalars(index_qv,k,iCell)))
+!            rho_zz(k,iCell) = pressure(k,iCell) / rgas / &
+!                              (p(k,iCell) * t(k,iCell) * (1.0 + (rvord - 1.0) * scalars(index_qv,k,iCell)))
+            rho_zz(k,iCell) = pressure(k,iCell) / rgas / (p(k,iCell) * t(k,iCell))
             rho_zz(k,iCell) = rho_zz(k,iCell) / (1.0 + scalars(index_qv,k,iCell))
          end do
       end do
@@ -5572,6 +6071,14 @@ call mpas_log_write('Done with soil consistency check')
       endif
 
       !
+      ! After RH has been used to compute qv (unless config_use_spechumd = T and a valid spechum field
+      ! is available), modify the RH field to be with respect to ice for temperatures below freezing.
+      ! NB: Here we pass in 1:nCells explicitly, since computations involving the "garbage cell" could
+      ! trigger FPEs.
+      !
+      call convert_relhum_wrt_ice(t(:,1:nCells), relhum(:,1:nCells))
+
+      !
       ! Diagnose fields needed in initial conditions file (u, w, rho, theta)
       ! NB: At this point, "rho_zz" is simple dry density, and "theta_m" is regular potential temperature
       !
@@ -5585,7 +6092,9 @@ call mpas_log_write('Done with soil consistency check')
             t(k,iCell) = t(k,iCell) * (p0 / pressure(k,iCell)) ** (rgas / cp)
 
             ! RHO_ZZ
-            rho_zz(k,iCell) = pressure(k,iCell) / rgas / (p(k,iCell) * t(k,iCell))
+!            rho_zz(k,iCell) = pressure(k,iCell) / rgas / (p(k,iCell) * t(k,iCell))
+            rho_zz(k,iCell) = pressure(k,iCell) / rgas / &
+                              (p(k,iCell) * t(k,iCell) * (1.0 + (rvord - 1.0) * scalars(index_qv,k,iCell)))
             rho_zz(k,iCell) = rho_zz(k,iCell) / (1.0 + scalars(index_qv,k,iCell))
          end do
       end do

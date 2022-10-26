@@ -20,6 +20,9 @@ OBJS =  \
 	mpas_atmphys_functions.o \
 	mpas_atmphys_initialize_real.o \
 	mpas_atmphys_utilities.o \
+	module_mp_thompson_cldfra3.o \
+	mpas_atmphys_interface.o \
+	mpas_atmphys_vars.o \
 	mpas_stack.o \
 	mpas_kd_tree.o \
 	mpas_parse_geoindex.o \
@@ -60,7 +63,13 @@ mpas_init_atm_cases.o: \
 	mpas_init_atm_vinterp.o \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_functions.o \
+	module_mp_thompson_cldfra3.o \
+	mpas_atmphys_interface.o \
 	mpas_atmphys_initialize_real.o
+
+mpas_atmphys_interface.o: \
+	mpas_atmphys_constants.o \
+	mpas_atmphys_vars.o
 
 mpas_init_atm_hinterp.o: mpas_init_atm_queue.o mpas_init_atm_bitarray.o
 

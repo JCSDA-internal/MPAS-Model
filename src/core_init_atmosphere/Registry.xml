@@ -34,6 +34,8 @@
                      description="The number of soil layers used by the land-surface scheme"/>
                 <dim name="nFGLevels" definition="namelist:config_nfglevels"
                      description="The number of first-guess atmospheric layers"/>
+                <dim name="nHRLevels" definition="namelist:config_nhrlevels"
+                     description="The number of HRRR atmospheric layers"/>
                 <dim name="nFGSoilLevels" definition="namelist:config_nfgsoillevels"
                      description="The number of first-guess soil layers"/>
                 <dim name="nVertLevelsP1" definition="nVertLevels+1"
@@ -93,6 +95,11 @@
                      description="Number of halo layers for fields"
                      possible_values="Integer values, typically 2 or 3; DO NOT CHANGE"/>
 
+                <nml_option name="config_len_disp" type="real" default_value="120000.0"
+                     units="m"
+                     description="Horizontal length scale, used by the Smagorinsky formulation of horizontal diffusion and by 3-d divergence damping"
+                     possible_values="Positive real values"/>
+
         </nml_record>
 
         <nml_record name="dimensions" in_defaults="true">
@@ -110,6 +117,11 @@
                 <nml_option name="config_nfglevels"             type="integer"       default_value="38"
                      units="-"
                      description="The number of atmospheric levels (including surface and sea-level) in the first-guess dataset (cases 7 and 9 only)"
+                     possible_values="Positive integer values"/>
+
+                <nml_option name="config_nhrlevels"             type="integer"       default_value="41"
+                     units="-"
+                     description="The number of atmospheric levels (including surface and sea-level) in the HRRR dataset (cases 7 and 9 only)"
                      possible_values="Positive integer values"/>
 
                 <nml_option name="config_nfgsoillevels"         type="integer"       default_value="4"
@@ -272,6 +284,21 @@
                      units="-"
                      description="Whether to switch sea-ice threshold from 0.5 to 0.02"
                      possible_values="true or false"/>
+
+                <nml_option name="config_gr_cldmask" type="logical" default_value="false"
+                     units="-"
+                     description="logical for configuration of goes cloud mask"
+                     possible_values=".true. for clould mask update with goes data; .false., otherwise"/>
+
+                <nml_option name="config_gr_cldtopz" type="logical" default_value="false"
+                     units="-"
+                     description="logical for configuration of goes cloud top z"
+                     possible_values=".true. for clould top z update with goes data; .false., otherwise"/>
+
+                <nml_option name="config_gr_modq" type="logical" default_value="false"
+                     units="-"
+                     description="logical for configuration of goes modify q"
+                     possible_values=".true. for modify q related to the use of goes data; .false., otherwise"/>
 
         </nml_record>
 
@@ -546,6 +573,9 @@
                         <var name="snowc" packages="met_stage_out"/>
                         <var name="snowh" packages="met_stage_out"/>
                         <var name="xice" packages="met_stage_out"/>
+                        <var name="cldmask" packages="met_stage_out"/>
+                        <var name="gr_bt13" packages="met_stage_out"/>
+                        <var name="cldfrac" packages="met_stage_out"/>
                         <var name="seaice" packages="met_stage_out"/>
                         <var name="vegfra" packages="met_stage_out"/>
                         <var name="sfc_albbck" packages="met_stage_out"/>
@@ -913,7 +943,16 @@
 
                         <var name="qr" array_group="moist" units="kg kg^{-1}"
                              description="Rain water mixing ratio"/>
+
+                        <var name="qi" array_group="moist" units="kg kg^{-1}"
+                             description="Ice mixing ratio"/>
+
+                        <var name="qs" array_group="moist" units="kg kg^{-1}"
+                             description="Snow mixing ratio"/>
                 </var_array>
+
+                <var name="cldfrac" type="real" dimensions="nVertLevels nCells Time" units="unitless"
+                     description="horizontal cloud fraction"/>  
 
                 <!-- Climatology for ocean mixed-layer depth -->
                 <var name="h_oml_initial" type="real" dimensions="nCells Time" units="m"
@@ -1040,6 +1079,24 @@
 
                 <var name="xice" type="real" dimensions="nCells Time" units="unitless"
                      description="fractional area coverage of sea-ice"/>
+
+                <var name="cldmask" type="real" dimensions="nCells Time" units="unitless"
+                     description="cloud mask (1=cloudy ; 0=clear)"/>
+
+                <var name="z_hr" type="real" dimensions="nHRLevels nCells Time" units="m"
+                     description="HRRR geopotential height"/>
+
+                <var name="qc_hr" type="real" dimensions="nHRLevels nEdges Time" units="kg kg^{-1}"
+                     description="Cloud water mixing ratio"/>
+
+                <var name="qi_hr" type="real" dimensions="nHRLevels nEdges Time" units="kg kg^{-1}"
+                     description="Ice mixing ratio"/>
+
+                <var name="qs_hr" type="real" dimensions="nHRLevels nEdges Time" units="kg kg^{-1}"
+                     description="Snow mixing ratio"/>
+
+                <var name="gr_bt13" type="real" dimensions="nCells Time" units="K"
+                     description="brightness temperature from GOES-16 channel 13"/>
 
                 <var name="seaice" type="real" dimensions="nCells Time" units="unitless"
                      description="sea-ice flag (0=no seaice; =1 otherwise)"/>

@@ -520,6 +520,15 @@
 			<var name="lai"/>
 			<var name="isice_lu"/>
 			<var name="iswater_lu"/>
+                        <var name="isltyp"/>
+                        <var name="ivgtyp"/>
+                        <var name="mminlu"/>
+                        <var name="landmask"/>
+                        <var name="shdmin"/>
+                        <var name="shdmax"/>
+                        <var name="snoalb"/>
+                        <var name="albedo12m"/>
+                        <var name="greenfrac"/>
 			<var name="sfc_albbck"/>
 			<var name="sfc_albedo"/>
 			<var name="sfc_albedo_seaice"/>
@@ -540,6 +549,8 @@
 			<var name="vegfra"/>
 			<var name="seaice"/>
 			<var name="xice"/>
+                        <var name="cldmask"/>
+                        <var name="gr_bt13"/>
 			<var name="xland"/>
 			<var name="u10"/>
 			<var name="v10"/>
@@ -857,6 +868,8 @@
 			<var name="vegfra"/>
 			<var name="seaice"/>
 			<var name="xice"/>
+                        <var name="cldmask"/>
+                        <var name="gr_bt13"/>
 			<var name="xland"/>
 			<var name="dzs"/>
 			<var name="smcrel"/>
@@ -999,6 +1012,8 @@
 			<var name="sst"/>
 			<var name="vegfra"/>
 			<var name="xice"/>
+                        <var name="cldmask"/>
+                        <var name="gr_bt13"/>
 			<var name="sh2o"/>
 			<var name="smois"/>
 			<var name="tslb"/>
@@ -2010,6 +2025,16 @@
                      units="-"
                      description="logical for configuration of sea-surface temperature"
                      possible_values=".true. for time-varying sea-surface temperatures; .false., otherwise"/>
+
+                <nml_option name="config_gr_cldmask" type="logical" default_value="false"
+                     units="-"
+                     description="logical for configuration of goes cloud mask"
+                     possible_values=".true. for clould mask update with goes data; .false., otherwise"/>
+
+                <nml_option name="config_gr_cldtopz" type="logical" default_value="false"
+                     units="-"
+                     description="logical for configuration of goes cloud top z"
+                     possible_values=".true. for clould top z update with goes data; .false., otherwise"/>
 
                 <nml_option name="config_sstdiurn_update" type="logical" default_value="false"
                      units="-"
@@ -3154,6 +3179,12 @@
 
                 <var name="xice" type="real" dimensions="nCells Time" units="unitless"
                      description="fractional area coverage of sea-ice"/>
+
+                <var name="cldmask" type="real" dimensions="nCells Time" units="unitless"
+                     description="cloud mask (1=cloudy ; 0=clear)"/>
+
+                <var name="gr_bt13" type="real" dimensions="nCells Time" units="K"
+                     description="brightness temperature from GOES-16 channel 13"/>
 
                 <var name="xland" type="real" dimensions="nCells Time" units="unitless"
                      description="land-ocean mask (1=land including sea-ice ; 2=ocean)"/>
