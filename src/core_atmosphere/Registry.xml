@@ -1812,6 +1812,13 @@
                 <var name="surface_pressure" type="real" dimensions="nCells Time" units="Pa"
                      description="Diagnosed surface pressure"/>
 
+                <!-- observation-related variables interfacing to Non-Variational SAtellite-based Cloud Analysis (SACA)  -->
+                <var name="cldmask" type="real" dimensions="nCells Time" units="unitless"
+                     description="cloud mask (1=cloudy ; 0=clear)"/>
+
+                <var name="gr_bt13" type="real" dimensions="nCells Time" units="K"
+                     description="brightness temperature from GOES-16 channel 13"/>
+
         </var_struct>
 
         <var_struct name="tend" time_levs="1">
