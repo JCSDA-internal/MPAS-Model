@@ -1816,8 +1816,8 @@
                 <var name="cldmask" type="real" dimensions="nCells Time" units="unitless"
                      description="cloud mask (1=cloudy ; 0=clear)"/>
 
-                <var name="gr_bt13" type="real" dimensions="nCells Time" units="K"
-                     description="brightness temperature from GOES-16 channel 13"/>
+                <var name="brtemp" type="real" dimensions="nCells Time" units="K"
+                     description="brightness temperature to calculate cloud top height; usually from geostationary IR window channel"/>
 
         </var_struct>
 
