@@ -1814,10 +1814,12 @@
 
                 <!-- observation-related variables interfacing to Non-Variational SAtellite-based Cloud Analysis (SACA)  -->
                 <var name="cldmask" type="real" dimensions="nCells Time" units="unitless"
-                     description="cloud mask (1=cloudy ; 0=clear)"/>
+                     description="cloud mask (1=cloudy ; 0=clear)"
+                     packages="jedi_da"/>
 
                 <var name="brtemp" type="real" dimensions="nCells Time" units="K"
-                     description="brightness temperature to calculate cloud top height; usually from geostationary IR window channel"/>
+                     description="brightness temperature to calculate cloud top height; usually from geostationary IR window channel"
+                     packages="jedi_da"/>
 
         </var_struct>
 
