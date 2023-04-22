@@ -585,17 +585,18 @@ contains
       integer i,j,k,lq,km,km1
       real dt,ztpp1
       real zew,zqs,zcor
-      real scale_fac(lq), dxref
+      real scale_fac(lq), scale_fac2(lq), dxref
 !
 ! ww: factors to scale adjustment time and conv mass fluxes
 !
       dxref = 15000.
       do j=1,lq
       if (dx(j).lt.dxref) then
-          scale_fac(j) = (1.+log(dxref/dx(j)))**3
-!print *, 'scale_fac = ', scale_fac(j)
+          scale_fac(j) = (1.06133+log(dxref/dx(j)))**3
+          scale_fac2(j) = scale_fac(j)**0.5
       else
           scale_fac(j) = 1.+1.33e-5*dx(j)
+          scale_fac2(j) = 1.
       end if
       end do
 !
@@ -651,7 +652,7 @@ contains
      &     pssfc,    locum,                             &
      &     ktype,    icbot,    ictop,    ztu,     zqu,  &
      &     zlu,      zlude,    zmfu,     zmfd,    zrain,&
-     &     pcte,     phhfl,    lndj,     pgeoh,   dx,  scale_fac)
+     &     pcte,     phhfl,    lndj,     pgeoh,   dx,  scale_fac, scale_fac2)
 !
 !     to include the cloud water and cloud ice detrained from convection
 !
@@ -706,7 +707,7 @@ contains
      &     pssfc,    ldcum,                              &
      &     ktype,    kcbot,    kctop,    ptu,      pqu,&
      &     plu,      plude,    pmfu,     pmfd,     prain,&
-     &     pcte,     phhfl,    lndj,     zgeoh,    dx,  scale_fac)
+     &     pcte,     phhfl,    lndj,     zgeoh,    dx,  scale_fac, scale_fac2)
       implicit none
 !
 !***cumastrn*  master routine for cumulus massflux-scheme
@@ -814,7 +815,7 @@ contains
      &         ktype(klon),            lndj(klon)
       logical  ldcum(klon)
       logical  loddraf(klon),          llo1,   llo2(klon)
-      real     scale_fac(klon)
+      real     scale_fac(klon),        scale_fac2(klon)
 
 !  local varaiables
       real     zcons,zcons2,zqumqe,zdqmin,zdh,zmfmax
@@ -915,7 +916,7 @@ contains
      &     zuu,      zvu,      pmfu,     zmfub,&
      &     zmfus,    zmfuq,    zmful,    plude,    zdmfup,&
      &     kcbot,    kctop,    ictop0,   icum,     ztmst,&
-     &     zqsenh,   zlglac,   lndj,     wup,      wbase,   kdpl,  pmfude_rate,  scale_fac )
+     &     zqsenh,   zlglac,   lndj,     wup,      wbase,   kdpl,  pmfude_rate )
 
 !*     (b) check cloud depth and change entrainment rate accordingly
 !          calculate precipitation rate (for downdraft calculation)
@@ -1033,11 +1034,10 @@ contains
            ikt = kctop(jl)
 !          ztau = ztauc(jl) * (1.+1.33e-5*dx(jl))
 ! ww: scale the adj time
+           ztauc(jl) = max(ztmst,ztauc(jl))
+           ztauc(jl) = max(360.,ztauc(jl))
+           ztauc(jl) = min(10800.,ztauc(jl))
            ztau = ztauc(jl) * scale_fac(jl)
-           ztau = max(ztmst,ztau)
-           ztau = max(360.,ztau)
-!          ztau = min(10800.,ztau)
-           ztau = min(43200.,ztau)
            if(nonequil) then
              zcape2(jl)= max(0.,zcape2(jl))
              zcape(jl) = max(0.,min(zcape1(jl)-zcape2(jl),5000.))
@@ -1046,7 +1046,7 @@ contains
            end if
            zheat(jl) = max(1.e-4,zheat(jl))
            zmfub1(jl) = (zcape(jl)*zmfub(jl))/(zheat(jl)*ztau)
-           zmfub1(jl) = max(zmfub1(jl),0.0001)
+           zmfub1(jl) = max(zmfub1(jl),0.001)
            zmfmax=(paph(jl,ikb)-paph(jl,ikb-1))*zcons2
            zmfub1(jl)=min(zmfub1(jl),zmfmax)
        end if
@@ -1076,6 +1076,8 @@ contains
            else
              zmfub1(jl) = zmfub(jl)
            end if
+!  test to scale shallow conv flux
+           zmfub1(jl) = zmfub1(jl)/scale_fac2(jl)
            zmfub1(jl) = min(zmfub1(jl),zmfmax)
          end if
 
@@ -2119,7 +2121,7 @@ contains
      &     puu,      pvu,      pmfu,     pmfub,    &
      &     pmfus,    pmfuq,    pmful,    plude,    pdmfup,&
      &     kcbot,    kctop,    kctop0,   kcum,     ztmst,&
-     &     pqsenh,   plglac,   lndj,     wup,      wbase,   kdpl, pmfude_rate, scale_fac)
+     &     pqsenh,   plglac,   lndj,     wup,      wbase,   kdpl, pmfude_rate)
       implicit none
 !     this routine does the calculations for cloud ascents
 !     for cumulus parameterization
@@ -2240,7 +2242,6 @@ contains
       real     zrnew,zz,zdmfeu,zdmfdu,dp
       real     zfac,zbuoc,zdkbuo,zdken,zvv,zarg,zchange,zxe,zxs,zdshrd
       real     atop1,atop2,abot
-      real     scale_fac(klon)
 !--------------------------------
 !*    1.       specify parameters
 !--------------------------------
@@ -2545,9 +2546,7 @@ contains
             ikb=kcbot(jl)
             if ( plu(jl,jk) > zdshrd )then
               zwu = min(15.0,sqrt(2.*max(0.1,kup(jl,jk+1))))
-! ww
-!             zprcon = zprcdgw/(0.75*zwu)
-              zprcon = zprcdgw/(scale_fac(jl)**(1./3.))/(0.75*zwu)
+              zprcon = zprcdgw/(0.75*zwu)
 ! PARAMETERS FOR BERGERON-FINDEISEN PROCESS (T < -5C)
               zdt = min(rtber-rtice,max(rtber-ptu(jl,jk),0.))
               zcbf = 1. + z_cprc2*sqrt(zdt)
@@ -3772,8 +3771,6 @@ contains
          do jl=1,klon
           if(.not.ldcum(jl) .and. klab(jl,kk+1).eq.0) then
             if(lmfmid .and. pqen(jl,kk) .gt. 0.80*pqsen(jl,kk).and. &
-! ww (no mid level conv if the air is saturated)
-              pqen(jl,kk) .lt. pqsen(jl,kk).and. &
               pgeo(jl,kk)*zrg .gt. 5.0e2  .and.  &
      &        pgeo(jl,kk)*zrg .lt. 1.0e4 )  then
             ptu(jl,kk+1)=(cpd*pten(jl,kk)+pgeo(jl,kk)-pgeoh(jl,kk+1))&
