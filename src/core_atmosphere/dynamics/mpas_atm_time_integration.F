@@ -1650,11 +1650,11 @@ module atm_time_integration
 
               if (config_monotonic) then ! no physics tend in update
                  do k = 1, nVertLevels
-                    rqvdynten(k,iCell) = (   scalars_2(index_qv,k,iCell) - scalars_1(index_qv,k,iCell) ) / config_dt
+                    rqvdynten(k,iCell) = (   scalars_2(index_qv,k,iCell) - scalars_1(index_qv,k,iCell) ) / dt
                  end do
               else  ! physics tend in update, need to remove it
                  do k = 1, nVertLevels  
-                    rqvdynten(k,iCell) = (   scalars_2(index_qv,k,iCell) - scalars_1(index_qv,k,iCell) ) / config_dt &
+                    rqvdynten(k,iCell) = (   scalars_2(index_qv,k,iCell) - scalars_1(index_qv,k,iCell) ) / dt &
                                                     - scalars_tend(index_qv,k,iCell)/rho_zz(k,iCell)
                  end do
               end if
