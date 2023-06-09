@@ -851,6 +851,12 @@ module atm_core
       real (kind=RKIND) :: xtime_s
       integer :: ierr
 
+      integer, parameter :: substeps=3, steps_to_substep=2
+      integer :: step, integration_steps, itimestep_local
+      real (kind=RKIND) :: integration_dt
+      type (mpas_pool_type), pointer :: state
+      logical :: substep_step
+
       clock => domain % clock
       mpas_log_info => domain % logInfo
 
@@ -870,7 +876,31 @@ module atm_core
       endif
 #endif
 
-      call atm_timestep(domain, dt, currTime, itimestep)
+      substep_step = .false.
+      integration_dt = dt
+      integration_steps = 1
+      itimestep_local = itimestep
+
+      if(itimestep .le. steps_to_substep) then
+        substep_step = .true.
+        integration_dt = dt/real(substeps)
+        integration_steps = substeps
+        itimestep_local = (itimestep-1)*substeps + 1
+      end if
+
+      do step = 1, integration_steps
+
+        if (substep_step) call mpas_log_write(' substep $i of step $i ', intArgs=(/step,itimestep/))
+        call atm_timestep(domain, integration_dt, currTime, itimestep_local)
+
+        if (step .lt. integration_steps) then
+          ! Move time level 2 fields back into time level 1 for next time step
+          call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
+          call mpas_pool_shift_time_levels(state)
+          itimestep_local = itimestep_local + 1
+        end if
+
+      end do
 
    end subroutine atm_do_timestep
    
