@@ -57,7 +57,6 @@ module module_cu_ntiedtke
      implicit none
      real,private :: t13,rcpd,vtmpc1,tmelt,            &
              c1es,c2es,c3les,c3ies,c4les,c4ies,c5les,c5ies,zrg
-
      real,private :: r5alvcp,r5alscp,ralvdcp,ralsdcp,ralfdcp,rtwat,rtber,rtice 
      real,private :: entrdd,cmfcmax,cmfcmin,cmfdeps,zdnoprc,cprcon,pgcoef
      integer,private :: momtrans
@@ -221,6 +220,7 @@ contains
                                         dt
       real,    dimension(ims:ime, jms:jme), intent(in) ::               &
                                         dx
+
 
       real,    dimension(ims:ime, jms:jme), intent(in) ::               &
                                         xland
@@ -585,6 +585,20 @@ contains
       integer i,j,k,lq,km,km1
       real dt,ztpp1
       real zew,zqs,zcor
+      real scale_fac(lq), scale_fac2(lq), dxref
+!
+! ww: factors to scale adjustment time and conv mass fluxes
+!
+      dxref = 15000.
+      do j=1,lq
+      if (dx(j).lt.dxref) then
+          scale_fac(j) = (1.06133+log(dxref/dx(j)))**3
+          scale_fac2(j) = scale_fac(j)**0.5
+      else
+          scale_fac(j) = 1.+1.33e-5*dx(j)
+          scale_fac2(j) = 1.
+      end if
+      end do
 !
       ztmst=dt
 !
@@ -638,7 +652,7 @@ contains
      &     pssfc,    locum,                             &
      &     ktype,    icbot,    ictop,    ztu,     zqu,  &
      &     zlu,      zlude,    zmfu,     zmfd,    zrain,&
-     &     pcte,     phhfl,    lndj,     pgeoh,   dx)
+     &     pcte,     phhfl,    lndj,     pgeoh,   dx,  scale_fac, scale_fac2)
 !
 !     to include the cloud water and cloud ice detrained from convection
 !
@@ -693,7 +707,7 @@ contains
      &     pssfc,    ldcum,                              &
      &     ktype,    kcbot,    kctop,    ptu,      pqu,&
      &     plu,      plude,    pmfu,     pmfd,     prain,&
-     &     pcte,     phhfl,    lndj,     zgeoh,    dx)
+     &     pcte,     phhfl,    lndj,     zgeoh,    dx,  scale_fac, scale_fac2)
       implicit none
 !
 !***cumastrn*  master routine for cumulus massflux-scheme
@@ -801,6 +815,7 @@ contains
      &         ktype(klon),            lndj(klon)
       logical  ldcum(klon)
       logical  loddraf(klon),          llo1,   llo2(klon)
+      real     scale_fac(klon),        scale_fac2(klon)
 
 !  local varaiables
       real     zcons,zcons2,zqumqe,zdqmin,zdh,zmfmax
@@ -1017,10 +1032,12 @@ contains
        if(ldcum(jl).and.ktype(jl).eq.1) then
            ikb = kcbot(jl)
            ikt = kctop(jl)
-           ztau = ztauc(jl) * (1.+1.33e-5*dx(jl))
-           ztau = max(ztmst,ztau)
-           ztau = max(360.,ztau)
-           ztau = min(10800.,ztau)
+!          ztau = ztauc(jl) * (1.+1.33e-5*dx(jl))
+! ww: scale the adj time
+           ztauc(jl) = max(ztmst,ztauc(jl))
+           ztauc(jl) = max(360.,ztauc(jl))
+           ztauc(jl) = min(10800.,ztauc(jl))
+           ztau = ztauc(jl) * scale_fac(jl)
            if(nonequil) then
              zcape2(jl)= max(0.,zcape2(jl))
              zcape(jl) = max(0.,min(zcape1(jl)-zcape2(jl),5000.))
@@ -1059,6 +1076,8 @@ contains
            else
              zmfub1(jl) = zmfub(jl)
            end if
+!  test to scale shallow conv flux
+           zmfub1(jl) = zmfub1(jl)/scale_fac2(jl)
            zmfub1(jl) = min(zmfub1(jl),zmfmax)
          end if
 
@@ -3871,4 +3890,3 @@ contains
       end function  foeldcpm
 
 end module module_cu_ntiedtke
-
