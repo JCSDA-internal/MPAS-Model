@@ -237,7 +237,7 @@ set(MPAS_SUBDRIVER_SRC  ${CMAKE_CURRENT_SOURCE_DIR}/src/driver/mpas_subdriver.F)
 add_subdirectory(src/external/ezxml) # Target: MPAS::external::ezxml
 if(ESMF_FOUND)
   message(STATUS "Configure MPAS for external ESMF")
-  add_definitions(-DMPAS_EXTERNAL_ESMF_LIB)
+  add_definitions(-DMPAS_EXTERNAL_ESMF_LIB -DMPAS_NO_ESMF_INIT)
   add_library(${PROJECT_NAME}::external::esmf ALIAS esmf)
 else()
   message(STATUS "Configure MPAS for internal ESMF")
