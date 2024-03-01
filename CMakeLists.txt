@@ -4,9 +4,15 @@ project(MPAS LANGUAGES C Fortran VERSION 7.0 DESCRIPTION "MPAS - Model for Predi
 
 ### Global Configuration
 
-list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
 set(CMAKE_DIRECTORY_LABELS ${PROJECT_NAME})
 include(GNUInstallDirs)
+
+## Compiler flags and other cmake settings
+find_package( jedicmake REQUIRED )  # Prefer find modules from jedi-cmake
+list( APPEND CMAKE_MODULE_PATH $ENV{jedi_cmake_ROOT}/share/jedicmake/Modules )
+### list( APPEND CMAKE_MODULE_PATH $ENV{jedi_cmake_ROOT}/share/jedicmake/Flags )
+### list( APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
+### include( jedi_compiler_flags )
 
 # Options
 set(MPAS_ALL_CORES atmosphere init_atmosphere landice ocean seaice sw test)
