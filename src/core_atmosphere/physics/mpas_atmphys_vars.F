@@ -415,7 +415,8 @@
 
 !... MYNN PBL scheme (module_bl_mynn.F):
  integer,parameter:: spp_pbl   = 0          !generate array with random perturbations (0=off,1=on).
- integer,parameter:: icloud_bl = 0          !no coupling of subgrid-scale clouds with radiation.
+ integer,parameter:: icloud_bl = 1          !afdemo cloud-physics test (2026-10-07): couple the MYNN subgrid-scale clouds with radiation
+                                             !(see driver_cloudiness in mpas_atmphys_driver_cloudiness.F); stock MPAS v8.4.0 has 0.
 
  integer,dimension(:,:),allocatable:: &
     kbl_plume_p        !level of highest penetrating plume.

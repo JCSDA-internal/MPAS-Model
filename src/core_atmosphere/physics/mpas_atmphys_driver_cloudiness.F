@@ -187,6 +187,8 @@
 
 !local variables and pointers:
  character(len=StrKIND),pointer:: radt_cld_scheme
+ character(len=StrKIND),pointer:: pbl_scheme
+ real(kind=RKIND),dimension(:,:),pointer:: cldfrac_bl,qc_bl,qi_bl
 
  integer:: i,j,k
 
@@ -225,6 +227,30 @@
     case default
 
  end select cld_fraction_select
+
+!afdemo cloud-physics test (2026-10-07): couple the MYNN subgrid-scale clouds to the radiation, as WRF does with icloud_bl = 1
+!(stock MPAS v8.4.0 computes cldfrac_bl, qc_bl and qi_bl in the PBL driver but never passes them to the radiation). The radiative
+!cloud fraction becomes the larger of the resolved one (above) and MYNN's; the radiation's cloud water and ice become the larger of
+!the resolved and the subgrid (grid-mean) values, so cells with resolved cloud are not counted twice. The values are those of the
+!previous PBL call (driver_pbl runs after the radiation in physics_driver). RRTMG gives cloudy layers whose Thompson effective
+!radius is at its floor 7.5 (land) / 10.5 (ocean) microns for liquid and a temperature-based radius for ice.
+ call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
+ if(icloud_bl > 0 .and. trim(pbl_scheme) == 'bl_mynn') then
+    call mpas_pool_get_array(diag_physics,'cldfrac_bl',cldfrac_bl)
+    call mpas_pool_get_array(diag_physics,'qc_bl'     ,qc_bl     )
+    call mpas_pool_get_array(diag_physics,'qi_bl'     ,qi_bl     )
+    do j = jts,jte
+    do k = kts,kte
+    do i = its,ite
+       if(cldfrac_bl(k,i) > 0.001_RKIND) then
+          cldfrac_p(i,k,j) = max(cldfrac_p(i,k,j),min(1._RKIND,cldfrac_bl(k,i)))
+          qcrad_p(i,k,j)   = max(qcrad_p(i,k,j),qc_bl(k,i))
+          qirad_p(i,k,j)   = max(qirad_p(i,k,j),qi_bl(k,i))
+       endif
+    enddo
+    enddo
+    enddo
+ endif
 
 !copy local arrays to MPAS grid:
  call cloudiness_to_MPAS(diag_physics,its,ite)
