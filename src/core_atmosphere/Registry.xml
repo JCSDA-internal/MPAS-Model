@@ -2355,6 +2355,11 @@
                      description="configuration for cloud microphysics schemes"
                      possible_values="`suite',`mp_wsm6',`mp_thompson',`mp_thompson_aerosols', `mp_kessler',`off'"/>
 
+                <nml_option name="config_thompson_snow_vfac" type="real" default_value="1.0" in_defaults="false"
+                     units="-"
+                     description="Thompson microphysics: factor on the snow sedimentation (fall) speed at levels with T &lt;= 273.25 K, with the snow sub-step count recomputed for the CFL limit. Deposition and collection terms are unchanged. 1: original code path."
+                     possible_values="1, or a factor such as 1.5"/>
+
                 <nml_option name="config_convection_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for convection schemes"

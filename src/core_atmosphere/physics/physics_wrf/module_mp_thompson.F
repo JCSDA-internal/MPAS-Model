@@ -420,6 +420,10 @@
       REAL:: t1_qs_sd, t2_qs_sd, t1_qg_sd, t2_qg_sd
       REAL:: t1_qs_me, t2_qs_me, t1_qg_me, t2_qg_me
 
+!..Factor on the snow sedimentation speed at levels with T <= T_0+0.1, set from the MPAS namelist option
+!..config_thompson_snow_vfac in init_microphysics (mpas_atmphys_driver_microphysics.F). 1 = original code path.
+      REAL, SAVE:: snow_vfac = 1.0
+
 !+---+
 !+---+-----------------------------------------------------------------+
 !..END DECLARATIONS
@@ -3367,6 +3371,20 @@
              nstep = MAX(nstep, INT(DT/delta_tp + 1.))
           endif
        enddo
+!..Optional faster snow sedimentation (snow_vfac): scale the snow fall speed on levels at T <= T_0+0.1 in a separate
+!..block, leaving the loop above unchanged, and redo the sub-step count for the CFL limit. Deposition and collection
+!..terms are untouched; only the residence time of snow changes.
+       if (snow_vfac .ne. 1.0) then
+        nstep = 0
+        do k = kte, kts, -1
+          if (temp(k).le. (T_0+0.1)) vtsk(k) = vtsk(k)*snow_vfac
+          if (vtsk(k) .gt. 1.E-3) then
+             ksed1(3) = MAX(ksed1(3), k)
+             delta_tp = dzq(k)/vtsk(k)
+             nstep = MAX(nstep, INT(DT/delta_tp + 1.))
+          endif
+        enddo
+       endif
        if (ksed1(3) .eq. kte) ksed1(3) = kte-1
        if (nstep .gt. 0) onstep(3) = 1./REAL(nstep)
        endif

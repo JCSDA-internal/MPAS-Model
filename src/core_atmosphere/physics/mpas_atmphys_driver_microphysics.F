@@ -274,6 +274,7 @@
 !local pointer:
  logical,pointer:: do_restart
  character(len=StrKIND),pointer:: microp_scheme
+ real(kind=RKIND),pointer:: config_thompson_snow_vfac
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -292,6 +293,12 @@
 
  microp_select: select case(trim(microp_scheme))
     case("mp_thompson","mp_thompson_aerosols")
+       !optional factor on the snow sedimentation speed at cold levels (module_mp_thompson: snow_vfac); 1 keeps the
+       !original code path.
+       call mpas_pool_get_config(configs,'config_thompson_snow_vfac',config_thompson_snow_vfac)
+       snow_vfac = config_thompson_snow_vfac
+       if(snow_vfac /= 1.0) call mpas_log_write('Thompson snow sedimentation speed x $r on levels at T <= T_0+0.1 ' // &
+                                                '(config_thompson_snow_vfac)',realArgs=(/real(snow_vfac,kind=RKIND)/))
        call thompson_init(l_mp_tables)
        call init_thompson_clouddroplets_forMPAS(mesh,sfc_input,diag_physics)
 
