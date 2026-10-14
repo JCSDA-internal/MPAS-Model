@@ -2370,6 +2370,11 @@
                      description="configuration for planetary boundary layer schemes"
                      possible_values="`suite',`bl_ysu',`bl_mynn',`off'"/>
 
+                <nml_option name="config_icloud_bl" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="coupling of the MYNN subgrid-scale clouds (cldfrac_bl, qc_bl, qi_bl) with the RRTMG radiation, as icloud_bl in WRF. 0: no coupling. 1: radiation sees the larger of the resolved and subgrid cloud fraction and cloud water and ice; the cldfrac written to the output stays the resolved value. Used with bl_mynn only."
+                     possible_values="0 or 1"/>
+
                 <nml_option name="config_gwdo_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration of gravity wave drag over orography"
@@ -2427,6 +2432,16 @@
                      units="-"
                      description="closure option for shallow convection in Grell-Freitas convection scheme"
                      possible_values="8"/>
+
+                <nml_option name="config_gf_shallow_tcap" type="real" default_value="0.0" in_defaults="false"
+                     units="K"
+                     description="Grell-Freitas shallow convection: when positive, the undilute residual plume stops at the first level above kbcon+tun_lim that is colder than this temperature. 0: no bound."
+                     possible_values="0, or a temperature such as 273.15"/>
+
+                <nml_option name="config_gf_deep_rhmid" type="real" default_value="0.0" in_defaults="false"
+                     units="-"
+                     description="Grell-Freitas deep convection: when positive, no deep convection in columns where the pressure-weighted q/qes over 700-400 hPa is below this fraction. 0: no moisture condition."
+                     possible_values="0, or a fraction such as 0.50"/>
 
                 <nml_option name="config_mynn_tkeadvect" type="logical" default_value="false" in_defaults="false"
                      units="-"

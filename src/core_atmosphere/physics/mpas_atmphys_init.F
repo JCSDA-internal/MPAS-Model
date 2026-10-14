@@ -18,7 +18,7 @@
  use mpas_atmphys_driver_radiation_lw,only: init_radiation_lw
  use mpas_atmphys_driver_radiation_sw,only: init_radiation_sw
  use mpas_atmphys_driver_sfclayer,only: init_sfclayer
- use mpas_atmphys_vars,only: f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz,f_nc,f_ni,f_nifa,f_nwfa,f_nbca
+ use mpas_atmphys_vars,only: f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz,f_nc,f_ni,f_nifa,f_nwfa,f_nbca,icloud_bl
 
  use mpas_atmphys_landuse
  use mpas_atmphys_o3climatology
@@ -142,6 +142,7 @@ use mpas_stream_manager
  real(kind=RKIND),dimension(:),pointer:: h_oml,h_oml_initial,hu_oml,hv_oml
  real(kind=RKIND),dimension(:),pointer:: rdzw,dzu
  real(kind=RKIND),pointer:: config_dt
+ integer,pointer:: config_icloud_bl
  integer,pointer:: nCells,nVertLevels
  character(len=StrKIND),pointer:: gwdo_scheme
  logical,pointer:: ngw_scheme
@@ -176,6 +177,12 @@ use mpas_stream_manager
  call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,config_radt_lw_scheme   )
  call mpas_pool_get_config(configs,'config_radt_sw_scheme'   ,config_radt_sw_scheme   )
  call mpas_pool_get_config(configs,'config_microphysics_top' ,config_microphysics_top )
+ call mpas_pool_get_config(configs,'config_icloud_bl'        ,config_icloud_bl        )
+
+!coupling of the MYNN subgrid-scale clouds with radiation (used in the MYNN, cloudiness and radiation drivers):
+ icloud_bl = config_icloud_bl
+ if(icloud_bl > 0) call mpas_log_write('physics init: config_icloud_bl = $i (MYNN subgrid-scale clouds coupled with radiation)', &
+                                       intArgs=(/icloud_bl/))
 
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
  call mpas_pool_get_dimension(mesh,'nLags'      ,nLags      )

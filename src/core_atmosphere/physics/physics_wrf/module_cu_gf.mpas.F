@@ -24,13 +24,13 @@ MODULE module_cu_gf
 ! icbl2s (cloud-physics session 2026-10-12, Global iteration 19, Ben 16:30): bound on the shallow (CUP_gf_sh) plume top. Above kbcon + tun_lim the
 ! shallow plume has no entrainment or detrainment (a 10 % undilute residual), rises to where dbyo < 0, detrains all of it at ktop and turns its
 ! condensate into vapour (no ice phase). With gf_sh_tcap > 0 the residual stops at the last cloud level at or below the first level above
-! kbcon + tun_lim whose (forced) environment temperature tn_cup is colder than gf_sh_tcap (K). Set once from the environment variable
-! GF_SHALLOW_TCAP in init_convection (mpas_atmphys_driver_convection.F). Unset / <= 0 = the original code path.
+! kbcon + tun_lim whose (forced) environment temperature tn_cup is colder than gf_sh_tcap (K). Set once from the namelist option
+! config_gf_shallow_tcap in init_convection (mpas_atmphys_driver_convection.F). 0 (the default) = the original code path.
  real, save:: gf_sh_tcap = 0.
 ! icbl2st (cloud-physics session 2026-10-12, Global iteration 20, Ben 18:04): deep GF needs a moist mid troposphere. With gf_dp_rhmid > 0, a
 ! column whose dp-weighted q / qes over 700-400 hPa (the scheme's own current-state environment, cup_env / cup_env_clev) is below gf_dp_rhmid gets
 ! ierr = 301 right after the k22 block (no deep convection this call). Codes > 995 are soft in the closure (reset to 0, M:2637), hence 301.
-! Set once from the environment variable GF_DEEP_RHMID (fraction) in init_convection. Unset / <= 0 = the original code path.
+! Set once from the namelist option config_gf_deep_rhmid (fraction) in init_convection. 0 (the default) = the original code path.
  real, save:: gf_dp_rhmid = 0.
 
 CONTAINS
@@ -993,7 +993,7 @@ CONTAINS
           enddo
           if(rhm_w.gt.0. .and. rhm_sum.lt.gf_dp_rhmid*rhm_w)then
            ierr(ir)=301
-           ierrc(ir)='mid-level RH below GF_DEEP_RHMID'
+           ierrc(ir)='mid-level RH below config_gf_deep_rhmid'
           endif
          endif
         enddo

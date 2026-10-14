@@ -371,15 +371,14 @@
 !local pointers:
  logical,pointer:: config_do_restart
  character(len=StrKIND),pointer:: convection_scheme
+ real(kind=RKIND),pointer:: config_gf_shallow_tcap,config_gf_deep_rhmid
 
  integer,pointer:: nCells
  real(kind=RKIND),dimension(:),pointer:: nca
 
 !local variables:
  integer:: iCell
- character(len=32):: envv   ! icbl2s
  character(len=StrKIND):: msg
- integer:: nenv,stenv,ios
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -399,27 +398,20 @@
        call kf_lutab(svp1,svp2,svp3,svpt0)
 
     case ("cu_grell_freitas")
-       !icbl2s (cloud-physics session 2026-10-12): optional bound on the shallow plume top (module_cu_gf: gf_sh_tcap)
-       call get_environment_variable('GF_SHALLOW_TCAP',envv,nenv,stenv)
-       gf_sh_tcap = 0.
-       if(stenv == 0 .and. nenv > 0) then
-          read(envv,*,iostat=ios) gf_sh_tcap
-          if(ios /= 0) gf_sh_tcap = 0.
-       endif
+       !optional bound on the shallow plume top (module_cu_gf: gf_sh_tcap); 0 keeps the original code path.
+       call mpas_pool_get_config(configs,'config_gf_shallow_tcap',config_gf_shallow_tcap)
+       gf_sh_tcap = max(0.,real(config_gf_shallow_tcap))
        if(gf_sh_tcap > 0.) then
-          write(msg,'(a,f7.2,a)') 'icbl2s: GF shallow residual plume top bounded below the first level colder than ',gf_sh_tcap, &
-                                  ' K above kbcon+tun_lim (GF_SHALLOW_TCAP)'
+          write(msg,'(a,f7.2,a)') 'GF shallow residual plume top bounded below the first level colder than ',gf_sh_tcap, &
+                                  ' K above kbcon+tun_lim (config_gf_shallow_tcap)'
           call physics_message(msg)
        endif
-       !icbl2st (cloud-physics session 2026-10-12): optional mid-level RH floor for the deep trigger (module_cu_gf: gf_dp_rhmid)
-       call get_environment_variable('GF_DEEP_RHMID',envv,nenv,stenv)
-       gf_dp_rhmid = 0.
-       if(stenv == 0 .and. nenv > 0) then
-          read(envv,*,iostat=ios) gf_dp_rhmid
-          if(ios /= 0) gf_dp_rhmid = 0.
-       endif
+       !optional mid-level moisture condition for deep convection (module_cu_gf: gf_dp_rhmid); 0 keeps the original code path.
+       call mpas_pool_get_config(configs,'config_gf_deep_rhmid',config_gf_deep_rhmid)
+       gf_dp_rhmid = max(0.,real(config_gf_deep_rhmid))
        if(gf_dp_rhmid > 0.) then
-          write(msg,'(a,f5.2,a)') 'icbl2st: GF deep trigger requires q/qes over 700-400 hPa >= ',gf_dp_rhmid,' (GF_DEEP_RHMID; else ierr 301)'
+          write(msg,'(a,f5.2,a)') 'GF deep convection requires q/qes over 700-400 hPa >= ',gf_dp_rhmid, &
+                                  ' (config_gf_deep_rhmid; else ierr 301)'
           call physics_message(msg)
        endif
 
