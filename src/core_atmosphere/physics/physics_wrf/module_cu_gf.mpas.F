@@ -27,6 +27,11 @@ MODULE module_cu_gf
 ! kbcon + tun_lim whose (forced) environment temperature tn_cup is colder than gf_sh_tcap (K). Set once from the environment variable
 ! GF_SHALLOW_TCAP in init_convection (mpas_atmphys_driver_convection.F). Unset / <= 0 = the original code path.
  real, save:: gf_sh_tcap = 0.
+! icbl2st (cloud-physics session 2026-10-12, Global iteration 20, Ben 18:04): deep GF needs a moist mid troposphere. With gf_dp_rhmid > 0, a
+! column whose dp-weighted q / qes over 700-400 hPa (the scheme's own current-state environment, cup_env / cup_env_clev) is below gf_dp_rhmid gets
+! ierr = 301 right after the k22 block (no deep convection this call). Codes > 995 are soft in the closure (reset to 0, M:2637), hence 301.
+! Set once from the environment variable GF_DEEP_RHMID (fraction) in init_convection. Unset / <= 0 = the original code path.
+ real, save:: gf_dp_rhmid = 0.
 
 CONTAINS
 
@@ -971,6 +976,29 @@ CONTAINS
          ENDIF
  36   CONTINUE
 #endif
+      if(gf_dp_rhmid .gt. 0.)then   ! icbl2st: mid-level RH floor for the deep trigger (see the module header)
+       block
+        real:: rhm_sum, rhm_w, rhm_dp
+        integer:: ir, kr
+        do ir=its,itf
+         if(ierr(ir).eq.0)then
+          rhm_sum=0.
+          rhm_w=0.
+          do kr=kts,ktf-1
+           if(p(ir,kr).le.700. .and. p(ir,kr).ge.400.)then
+            rhm_dp=p_cup(ir,kr)-p_cup(ir,kr+1)
+            rhm_sum=rhm_sum+rhm_dp*q(ir,kr)/max(1.e-10,qes(ir,kr))
+            rhm_w=rhm_w+rhm_dp
+           endif
+          enddo
+          if(rhm_w.gt.0. .and. rhm_sum.lt.gf_dp_rhmid*rhm_w)then
+           ierr(ir)=301
+           ierrc(ir)='mid-level RH below GF_DEEP_RHMID'
+          endif
+         endif
+        enddo
+       end block
+      endif
 !
 !--- DETERMINE THE LEVEL OF CONVECTIVE CLOUD BASE  - KBCON
 !

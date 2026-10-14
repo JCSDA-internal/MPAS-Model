@@ -411,6 +411,17 @@
                                   ' K above kbcon+tun_lim (GF_SHALLOW_TCAP)'
           call physics_message(msg)
        endif
+       !icbl2st (cloud-physics session 2026-10-12): optional mid-level RH floor for the deep trigger (module_cu_gf: gf_dp_rhmid)
+       call get_environment_variable('GF_DEEP_RHMID',envv,nenv,stenv)
+       gf_dp_rhmid = 0.
+       if(stenv == 0 .and. nenv > 0) then
+          read(envv,*,iostat=ios) gf_dp_rhmid
+          if(ios /= 0) gf_dp_rhmid = 0.
+       endif
+       if(gf_dp_rhmid > 0.) then
+          write(msg,'(a,f5.2,a)') 'icbl2st: GF deep trigger requires q/qes over 700-400 hPa >= ',gf_dp_rhmid,' (GF_DEEP_RHMID; else ierr 301)'
+          call physics_message(msg)
+       endif
 
     case default
 
