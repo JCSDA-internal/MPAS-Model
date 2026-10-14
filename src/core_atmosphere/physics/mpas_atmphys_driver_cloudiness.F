@@ -229,6 +229,8 @@
  end select cld_fraction_select
 
 !afdemo cloud-physics test (2026-10-07): couple the MYNN subgrid-scale clouds to the radiation, as WRF does with icloud_bl = 1
+!(build_icbl2, 2026-10-08: only the radiation's cloud water and ice are coupled here; the cloud fraction is coupled in the radiation drivers,
+!so diag_physics 'cldfrac', which the output streams and mpas-jedi read, keeps the resolved value.)
 !(stock MPAS v8.4.0 computes cldfrac_bl, qc_bl and qi_bl in the PBL driver but never passes them to the radiation). The radiative
 !cloud fraction becomes the larger of the resolved one (above) and MYNN's; the radiation's cloud water and ice become the larger of
 !the resolved and the subgrid (grid-mean) values, so cells with resolved cloud are not counted twice. The values are those of the
@@ -243,7 +245,7 @@
     do k = kts,kte
     do i = its,ite
        if(cldfrac_bl(k,i) > 0.001_RKIND) then
-          cldfrac_p(i,k,j) = max(cldfrac_p(i,k,j),min(1._RKIND,cldfrac_bl(k,i)))
+!         afdemo build_icbl2 (2026-10-08): the cloud-fraction coupling moved to radiation_sw/lw_from_MPAS; 'cldfrac' stays resolved.
           qcrad_p(i,k,j)   = max(qcrad_p(i,k,j),qc_bl(k,i))
           qirad_p(i,k,j)   = max(qirad_p(i,k,j),qi_bl(k,i))
        endif

@@ -385,6 +385,8 @@
  real(kind=RKIND),dimension(:),pointer    :: taod5502d
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid
  real(kind=RKIND),dimension(:,:),pointer  :: cldfrac,m_hybi,o3clim
+ real(kind=RKIND),dimension(:,:),pointer  :: cldfrac_bl   !afdemo build_icbl2
+ character(len=StrKIND),pointer:: pbl_scheme                 !afdemo build_icbl2
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
  real(kind=RKIND),dimension(:,:),pointer  :: taod5503d
  real(kind=RKIND),dimension(:,:,:),pointer:: aerosols,ozmixm
@@ -435,6 +437,22 @@
  enddo
  enddo
  enddo
+!afdemo cloud-physics (2026-10-08, build_icbl2; Ben: "give the operator a resolved-only cloud fraction"): driver_cloudiness now writes the
+!resolved cloud fraction to diag_physics 'cldfrac' (what the output streams, mpas-jedi and the IR H(x) read), and the coupling of the MYNN
+!subgrid-scale clouds to the radiation is applied here, on the radiation's own copy: the same max(resolved, MYNN) as build_icbl's
+!driver_cloudiness, from the same cldfrac_bl (driver_pbl runs after the radiation), so the radiation sees exactly what it saw in build_icbl.
+!The radiation's cloud water and ice (qcrad_p, qirad_p) keep the coupling in driver_cloudiness.
+ call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
+ if(icloud_bl > 0 .and. trim(pbl_scheme) == 'bl_mynn') then
+    call mpas_pool_get_array(diag_physics,'cldfrac_bl',cldfrac_bl)
+    do j = jts,jte
+    do k = kts,kte
+    do i = its,ite
+       if(cldfrac_bl(k,i) > 0.001_RKIND) cldfrac_p(i,k,j) = max(cldfrac_p(i,k,j),min(1._RKIND,cldfrac_bl(k,i)))
+    enddo
+    enddo
+    enddo
+ endif
 
 !initialization:
  do j = jts,jte
