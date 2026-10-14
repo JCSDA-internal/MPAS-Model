@@ -377,6 +377,9 @@
 
 !local variables:
  integer:: iCell
+ character(len=32):: envv   ! icbl2s
+ character(len=StrKIND):: msg
+ integer:: nenv,stenv,ios
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -394,6 +397,20 @@
           enddo
        endif
        call kf_lutab(svp1,svp2,svp3,svpt0)
+
+    case ("cu_grell_freitas")
+       !icbl2s (cloud-physics session 2026-10-12): optional bound on the shallow plume top (module_cu_gf: gf_sh_tcap)
+       call get_environment_variable('GF_SHALLOW_TCAP',envv,nenv,stenv)
+       gf_sh_tcap = 0.
+       if(stenv == 0 .and. nenv > 0) then
+          read(envv,*,iostat=ios) gf_sh_tcap
+          if(ios /= 0) gf_sh_tcap = 0.
+       endif
+       if(gf_sh_tcap > 0.) then
+          write(msg,'(a,f7.2,a)') 'icbl2s: GF shallow residual plume top bounded below the first level colder than ',gf_sh_tcap, &
+                                  ' K above kbcon+tun_lim (GF_SHALLOW_TCAP)'
+          call physics_message(msg)
+       endif
 
     case default
 

@@ -21,6 +21,13 @@ MODULE module_cu_gf
 !                                                              !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+! icbl2s (cloud-physics session 2026-10-12, Global iteration 19, Ben 16:30): bound on the shallow (CUP_gf_sh) plume top. Above kbcon + tun_lim the
+! shallow plume has no entrainment or detrainment (a 10 % undilute residual), rises to where dbyo < 0, detrains all of it at ktop and turns its
+! condensate into vapour (no ice phase). With gf_sh_tcap > 0 the residual stops at the last cloud level at or below the first level above
+! kbcon + tun_lim whose (forced) environment temperature tn_cup is colder than gf_sh_tcap (K). Set once from the environment variable
+! GF_SHALLOW_TCAP in init_convection (mpas_atmphys_driver_convection.F). Unset / <= 0 = the original code path.
+ real, save:: gf_sh_tcap = 0.
+
 CONTAINS
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -4610,12 +4617,21 @@ CONTAINS
                          (zuo(i,k-1)-.5*up_massdetro(i,k-1)+up_massentro(i,k-1))
           dbyo(i,k)=hco(i,k)-heso_cup(i,k)
          enddo
+         if(gf_sh_tcap .le. 0.)then
          do k=kbcon(i)+1,ktf
           if(dbyo(i,k).lt.0)then
               ktop(i)=k-1
               go to 41
           endif
          enddo
+         else   ! icbl2s: the undilute residual above kbcon+tun_lim stops below the first level colder than gf_sh_tcap
+         do k=kbcon(i)+1,ktf
+          if(dbyo(i,k).lt.0 .or. (k.gt.kbcon(i)+tun_lim .and. tn_cup(i,k).lt.gf_sh_tcap))then
+              ktop(i)=k-1
+              go to 41
+          endif
+         enddo
+         endif
 41       continue
          if(ktop(i).lt.kbcon(i)+1)then
             ierr(i)=5
